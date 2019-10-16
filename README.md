@@ -11,6 +11,7 @@ This package is just a helper for some of YOCKOW's other packages.
 
 ## Dependencies
 
+* [BonaFideCharacterSet](https://github.com/YOCKOW/SwiftBonaFideCharacterSet)
 * [CSV.swift](https://github.com/yaslab/CSV.swift)
 * [NetworkGear](https://github.com/YOCKOW/SwiftNetworkGear)
 

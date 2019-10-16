@@ -11,13 +11,18 @@ let package = Package(
   ],
   dependencies: [
     // Dependencies declare other packages that this package depends on.
+    .package(url: "https://github.com/YOCKOW/SwiftBonaFideCharacterSet.git", from: "1.6.1"),
     .package(url: "https://github.com/yaslab/CSV.swift.git", from: "2.4.2"),
     .package(url: "https://github.com/YOCKOW/SwiftNetworkGear.git", from: "0.10.2"),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
     // Targets can depend on other targets in this package, and on products in packages which this package depends on.
-    .target(name: "yCodeUpdater", dependencies: []),
-    .testTarget(name: "yCodeUpdaterTests", dependencies: ["yCodeUpdater"]),
+    .target(name: "yCodeUpdater",
+            dependencies: ["SwiftBonaFideCharacterSet",
+                           "CSV",
+                           "SwiftNetworkGear"]
+    ),
+    .testTarget(name: "yCodeUpdaterTests", dependencies: ["CSV", "yCodeUpdater"]),
   ]
 )

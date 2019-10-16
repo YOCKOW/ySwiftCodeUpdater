@@ -3,5 +3,6 @@ import XCTest
 import yCodeUpdaterTests
 
 var tests = [XCTestCaseEntry]()
-tests += yCodeUpdaterTests.allTests()
+tests += yCodeUpdaterTests.__allTests()
+
 XCTMain(tests)
