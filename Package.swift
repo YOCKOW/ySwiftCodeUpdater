@@ -14,6 +14,7 @@ let package = Package(
     .package(url: "https://github.com/YOCKOW/SwiftBonaFideCharacterSet.git", from: "1.6.1"),
     .package(url: "https://github.com/yaslab/CSV.swift.git", from: "2.4.2"),
     .package(url: "https://github.com/YOCKOW/SwiftNetworkGear.git", from: "0.10.2"),
+    .package(url: "https://github.com/YOCKOW/ySwiftExtensions.git", from: "0.5.0"),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -21,7 +22,8 @@ let package = Package(
     .target(name: "yCodeUpdater",
             dependencies: ["SwiftBonaFideCharacterSet",
                            "CSV",
-                           "SwiftNetworkGear"]
+                           "SwiftNetworkGear",
+                           "ySwiftExtensions"]
     ),
     .testTarget(name: "yCodeUpdaterTests", dependencies: ["CSV", "yCodeUpdater"]),
   ]
