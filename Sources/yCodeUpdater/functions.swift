@@ -8,6 +8,7 @@
 import Foundation
 import HTTP
 import NetworkGear
+import yExtensions
 
 private var _indentLevel = 0
 private func _indent() -> String { return String(repeating: " ", count: _indentLevel * 2) }
@@ -25,7 +26,9 @@ internal func _do<T>(_ message: String, closure: () throws -> T) -> T {
     print("\(_indent())✅ Succeeded.")
     return result
   } catch {
-    fatalError("\(_indent())❌ Failed due to an error: \(error)")
+    var stderr = FileHandle.standardError
+    print("\(_indent())❌ Failed due to an error: \(error)", to: &stderr)
+    fatalError(error.localizedDescription)
   }
 }
 
