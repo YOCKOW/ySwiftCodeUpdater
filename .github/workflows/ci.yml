@@ -21,6 +21,9 @@ jobs:
           - '4'
     runs-on: ${{ matrix.os }}
     steps:
+    - uses: actions/setup-python@v1.1.0
+      with:
+        python-version: '3.x'
     - uses: YOCKOW/Action-setup-swift@master
       with:
         swift-version: '5.1'
