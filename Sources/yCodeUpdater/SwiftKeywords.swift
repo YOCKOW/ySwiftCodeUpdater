@@ -58,29 +58,35 @@ private func _downloadPythonFiles() {
   }
 }
 
-@available(macOS 10.13, *)
+private enum _SwiftKeywordsError: Error {
+  case pythonNotFound
+  case pythonFailed
+}
+
 private let _swiftKeywords: Set<String> = ({ () -> Set<String> in
   _downloadPythonFiles()
   return _do("Getting Swift keywords") {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-    process.currentDirectoryURL = _gybSyntaxSupportDirectory
-    process.standardInput = TemporaryFile(contents: """
+    var python: URL! = _search(command: "python3")
+    if python == nil {
+      python = _search(command: "python")
+      if python == nil {
+        throw _SwiftKeywordsError.pythonNotFound
+      }
+    }
+    
+    guard let keywords = _run(python, currentDirectory: _gybSyntaxSupportDirectory, standardInput:"""
       from Token import SYNTAX_TOKEN_MAP
       from Token import DeclKeyword, ExprKeyword, StmtKeyword, Keyword
       for token in SYNTAX_TOKEN_MAP.values():
         if type(token) == DeclKeyword or type(token) == ExprKeyword or type(token) == StmtKeyword or type(token) == Keyword:
           print(token.text)
-      """.data(using: .utf8)!)
-    let resultPipe = Pipe()
-    process.standardOutput = resultPipe
-    try process.run()
+      """)
+      else {
+        throw _SwiftKeywordsError.pythonFailed
+    }
     
-    let resultFileHandle = resultPipe.fileHandleForReading
-    let resultData = resultFileHandle.availableData
-    let resultString = String(data: resultData, encoding: .utf8)!
     var result: Set<String> = []
-    for keyword in resultString.split(whereSeparator: { $0.isWhitespace || $0.isNewline }) {
+    for keyword in keywords.split(whereSeparator: { $0.isWhitespace || $0.isNewline }) {
       result.insert(String(keyword))
     }
     return result
@@ -89,10 +95,6 @@ private let _swiftKeywords: Set<String> = ({ () -> Set<String> in
 
 extension String {
   public var isSwiftKeyword: Bool {
-    if #available(macOS 10.13, *) {
-      return _swiftKeywords.contains(self)
-    } else {
-      fatalError("macOS < 10.13 is not supported.")
-    }
+    return _swiftKeywords.contains(self)
   }
 }

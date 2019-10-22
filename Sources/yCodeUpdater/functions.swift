@@ -5,13 +5,15 @@
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
  
+import BonaFideCharacterSet
 import Foundation
 import HTTP
 import NetworkGear
+import TemporaryFile
 import yExtensions
 
 private var _indentLevel = 0
-private func _indent() -> String { return String(repeating: " ", count: _indentLevel * 2) }
+private func _indent() -> String { return String(repeating: " ", count: _indentLevel * 4) }
 
 internal func _viewInfo(_ message: String) {
   print("\(_indent())ℹ️ \(message)")
@@ -78,4 +80,63 @@ internal func _fetch(_ url: URL, ifNoneMatch list: ETagList) -> Data? {
   
   if !modified { return nil }
   return _fetch(url)
+}
+
+internal func _run(_ executableURL: URL, arguments: [String] = [],
+                   currentDirectory: URL? = nil, environment: [String: String]? = nil,
+                   standardInput: String? = nil) -> String?
+{
+  var command = executableURL.path
+  if !arguments.isEmpty {
+    command += " " + arguments.joined(separator: " ")
+  }
+  return _do("Run `\(command)`") {
+    let process = Process()
+    if #available(macOS 10.13, *) {
+      process.executableURL = executableURL
+      if let cd = currentDirectory {
+        process.currentDirectoryURL = cd
+      }
+    } else {
+      process.launchPath = executableURL.path
+      if let cdPath = currentDirectory?.path {
+        process.currentDirectoryPath = cdPath
+      }
+    }
+    process.arguments = arguments
+    if let env = environment {
+      process.environment = env
+    }
+    if let stdin = standardInput?.data(using: .utf8) {
+      process.standardInput = TemporaryFile(contents: stdin)
+    }
+    
+    let stdout = Pipe()
+    process.standardOutput = stdout
+    
+    if #available(macOS 10.13, *) {
+      try process.run()
+    } else {
+      process.launch()
+    }
+    process.waitUntilExit()
+    
+    guard process.terminationStatus == 0 else {
+      _viewInfo("`\(command)` failed.")
+      return nil
+    }
+    return String(data: stdout.fileHandleForReading.availableData, encoding: .utf8)
+  }
+}
+
+internal func _search(command: String) -> URL? {
+  return _do("Searching `\(command)`") {
+    let sh = URL(fileURLWithPath: "/bin/sh")
+    guard let result = _run(sh, arguments: ["-c", "which \(command)"])?.trimmingUnicodeScalars(in: .whitespacesAndNewlines) else {
+      return nil
+    }
+    if result.isEmpty || !result.hasPrefix("/") { return nil }
+    _viewInfo("`\(command)` is at \"\(result)\".")
+    return URL(fileURLWithPath: result)
+  }
 }
