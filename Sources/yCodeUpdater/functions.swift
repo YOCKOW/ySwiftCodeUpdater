@@ -42,7 +42,7 @@ enum _FetchingError: Error {
 }
 
 internal func _fetch(_ url: URL) -> Data {
-  return _do("Fetching \(url.absoluteString)") {
+  return _do("Fetch \"\(url.absoluteString)\".") {
     let response = try url.response(to: .init(method: .get, header: [], body: nil))
     guard response.statusCode.rawValue / 100 == 2 else {
       throw _FetchingError.unexpectedStatusCode(response.statusCode)
@@ -53,7 +53,7 @@ internal func _fetch(_ url: URL) -> Data {
 }
 
 internal func _fetch(_ url: URL, ifModifiedSince date: Date) -> Data? {
-  let modified = _do("Checking whether the content at \(url.absoluteString) is modified since \(date.description).") { () throws -> Bool in
+  let modified = _do("Check whether the content at \"\(url.absoluteString)\" is modified since \(date.description).") { () throws -> Bool in
     guard let lastModified = url.lastModified else { throw _FetchingError.noLastModifiedDate }
     if lastModified <= date {
       _viewInfo("Up-to-date.")
@@ -68,7 +68,7 @@ internal func _fetch(_ url: URL, ifModifiedSince date: Date) -> Data? {
 }
 
 internal func _fetch(_ url: URL, ifNoneMatch list: ETagList) -> Data? {
-  let modified = _do("Checking ETag of \(url.absoluteString)") { () throws -> Bool in
+  let modified = _do("Check ETag of \"\(url.absoluteString)\".") { () throws -> Bool in
     guard let eTag = url.eTag else { throw _FetchingError.noETag }
     if list.contains(eTag, weakComparison: true) {
       _viewInfo("Up-to-date.")
@@ -88,9 +88,15 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
 {
   var command = executableURL.path
   if !arguments.isEmpty {
-    command += " " + arguments.joined(separator: " ")
+    command += " \(arguments.joined(separator: " "))"
   }
-  return _do("Run `\(command)`") {
+  var message = "Run `\(command)`"
+  if standardInput?.isEmpty == true {
+    message += "."
+  } else {
+    message += " with some inputs."
+  }
+  return _do(message) {
     let process = Process()
     if #available(macOS 10.13, *) {
       process.executableURL = executableURL
@@ -130,7 +136,7 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
 }
 
 internal func _search(command: String) -> URL? {
-  return _do("Searching `\(command)`") {
+  return _do("Search `\(command)`.") {
     let sh = URL(fileURLWithPath: "/bin/sh")
     guard let result = _run(sh, arguments: ["-c", "which \(command)"])?.trimmingUnicodeScalars(in: .whitespacesAndNewlines) else {
       return nil

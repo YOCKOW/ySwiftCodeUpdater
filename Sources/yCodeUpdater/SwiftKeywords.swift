@@ -35,11 +35,11 @@ private let _buildDirectory = _swiftPackageRoot.appendingPathComponent(".build",
 private let _gybSyntaxSupportDirectory = _buildDirectory.appendingPathComponent("python_modules", isDirectory: true).appendingPathComponent("gyb_syntax_support", isDirectory: true)
 
 private func _downloadPythonFiles() {
-  _do("Downloding python files to determine Swift keywords.") {
+  _do("Downlod python files to determine Swift keywords.") {
     let manager = FileManager.default
     
     if !manager.fileExists(atPath: _gybSyntaxSupportDirectory.path) {
-      _do("Creating directory at \(_gybSyntaxSupportDirectory.path)") {
+      _do("Create directory at \"\(_gybSyntaxSupportDirectory.path)\".") {
         try manager.createDirectory(at: _gybSyntaxSupportDirectory, withIntermediateDirectories: true)
       }
     }
@@ -51,7 +51,7 @@ private func _downloadPythonFiles() {
       let remoteURL = _remote_gyb_syntax_support_directory.appendingPathComponent(file)
       let data = _fetch(remoteURL)
       
-      _do("Writing data to \(target.path)") {
+      _do("Write data to \"\(target.path)\".") {
         try data.write(to: target)
       }
     }
@@ -65,7 +65,7 @@ private enum _SwiftKeywordsError: Error {
 
 private let _swiftKeywords: Set<String> = ({ () -> Set<String> in
   _downloadPythonFiles()
-  return _do("Getting Swift keywords") {
+  return _do("Get Swift's keywords.") {
     var python: URL! = _search(command: "python3")
     if python == nil {
       python = _search(command: "python")
