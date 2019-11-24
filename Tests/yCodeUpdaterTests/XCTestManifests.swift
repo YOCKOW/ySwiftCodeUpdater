@@ -15,6 +15,7 @@ extension SwiftKeywordsTests {
     //   `swift test --generate-linuxmain`
     // to regenerate.
     static let __allTests__SwiftKeywordsTests = [
+        ("test_identifier", test_identifier),
         ("test_keywords", test_keywords),
     ]
 }

@@ -98,4 +98,11 @@ extension String {
   public var isSwiftKeyword: Bool {
     return _swiftKeywords.contains(self)
   }
+  
+  public var swiftIdentifier: String {
+    if self.isSwiftKeyword {
+      return "`\(self)`"
+    }
+    return self
+  }
 }

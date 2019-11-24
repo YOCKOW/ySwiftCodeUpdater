@@ -14,6 +14,11 @@ final class SwiftKeywordsTests: XCTestCase {
     XCTAssertTrue("as".isSwiftKeyword)
     XCTAssertFalse("hogefugapiyo".isSwiftKeyword)
   }
+  
+  func test_identifier() {
+    XCTAssertEqual("class".swiftIdentifier, "`class`")
+    XCTAssertEqual("my_favourite_things".swiftIdentifier, "my_favourite_things")
+  }
 }
 
 
