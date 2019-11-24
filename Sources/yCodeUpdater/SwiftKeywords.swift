@@ -75,10 +75,11 @@ private let _swiftKeywords: Set<String> = ({ () -> Set<String> in
     }
     
     guard let keywords = _run(python, currentDirectory: _gybSyntaxSupportDirectory, standardInput:"""
-      from Token import SYNTAX_TOKEN_MAP
-      from Token import DeclKeyword, ExprKeyword, StmtKeyword, Keyword
+      from Token import (SYNTAX_TOKEN_MAP,
+                         DeclKeyword, ExprKeyword, StmtKeyword, Keyword)
+      __classes = [DeclKeyword, ExprKeyword, StmtKeyword, Keyword]
       for token in SYNTAX_TOKEN_MAP.values():
-        if type(token) == DeclKeyword or type(token) == ExprKeyword or type(token) == StmtKeyword or type(token) == Keyword:
+        if type(token) in __classes:
           print(token.text)
       """)
       else {
