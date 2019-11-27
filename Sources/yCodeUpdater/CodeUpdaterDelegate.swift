@@ -26,6 +26,12 @@ public struct IntermediateDataContainer<T> {
     self.content = content
     self.userInfo = userInfo
   }
+  
+  internal init(content: T, sourceURL: URL, userInfo: Dictionary<String, Any>?) {
+    self.content = content
+    self.sourceURL = sourceURL
+    self.userInfo = userInfo
+  }
 }
 
 public protocol CodeUpdaterDelegate {
