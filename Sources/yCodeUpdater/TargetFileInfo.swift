@@ -128,6 +128,10 @@ internal struct _TargetFileInfo {
     self.init(info)
   }
   
+  internal func containsInfo(for url: URL) -> Bool {
+    return self._info[url] != nil
+  }
+  
   internal func lastModifiedDate(for url: URL) -> Date? {
     return self._info[url]?.lastModified
   }

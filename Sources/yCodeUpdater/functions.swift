@@ -37,8 +37,6 @@ internal func _do<T>(_ message: String, closure: () throws -> T) -> T {
 enum _FetchingError: Error {
   case unexpectedStatusCode(HTTP.StatusCode)
   case noContent
-  case noETag
-  case noLastModifiedDate
 }
 
 internal func _fetch(_ url: URL) -> Data {
@@ -52,34 +50,29 @@ internal func _fetch(_ url: URL) -> Data {
   }
 }
 
-internal func _fetch(_ url: URL, ifModifiedSince date: Date) -> Data? {
-  let modified = _do("Check whether the content at \"\(url.absoluteString)\" is modified since \(date.description).") { () throws -> Bool in
-    guard let lastModified = url.lastModified else { throw _FetchingError.noLastModifiedDate }
-    if lastModified <= date {
-      _viewInfo("Up-to-date.")
-      return false
-    } else {
-      return true
+// Attributes of URL...
+// TODO: DRY
+
+private var __lastModified: Dictionary<URL, Date?> = [:]
+internal func _lastModified(of url: URL) -> Date? {
+  if __lastModified[url] == Optional<Optional<Date>>.none {
+    let lastModified: Date? = _do("Fetch Last-Modified Date of \(url.absoluteString).") {
+      return url.lastModified
     }
+    __lastModified[url] = lastModified
   }
-  
-  if !modified { return nil }
-  return _fetch(url)
+  return __lastModified[url].unsafelyUnwrapped
 }
 
-internal func _fetch(_ url: URL, ifNoneMatch list: ETagList) -> Data? {
-  let modified = _do("Check ETag of \"\(url.absoluteString)\".") { () throws -> Bool in
-    guard let eTag = url.eTag else { throw _FetchingError.noETag }
-    if list.contains(eTag, weakComparison: true) {
-      _viewInfo("Up-to-date.")
-      return false
-    } else {
-      return true
+private var __eTags: Dictionary<URL, ETag?> = [:]
+internal func _eTag(of url: URL) -> ETag? {
+  if __eTags[url] == Optional<Optional<ETag>>.none {
+    let eTag: ETag? = _do("Fetch ETag of \(url.absoluteString).") {
+      return url.eTag
     }
+    __eTags[url] = eTag
   }
-  
-  if !modified { return nil }
-  return _fetch(url)
+  return __eTags[url].unsafelyUnwrapped
 }
 
 internal func _run(_ executableURL: URL, arguments: [String] = [],

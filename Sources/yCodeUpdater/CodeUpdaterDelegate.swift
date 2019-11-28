@@ -26,12 +26,6 @@ public struct IntermediateDataContainer<T> {
     self.content = content
     self.userInfo = userInfo
   }
-  
-  internal init(content: T, sourceURL: URL, userInfo: Dictionary<String, Any>?) {
-    self.content = content
-    self.sourceURL = sourceURL
-    self.userInfo = userInfo
-  }
 }
 
 public protocol CodeUpdaterDelegate {
@@ -42,7 +36,7 @@ public protocol CodeUpdaterDelegate {
   var destinationURL: URL { get }
   
   func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType>
-  func convert(_: IntermediateDataContainer<IntermediateDataType>) throws -> Data
+  func convert<S>(_: S) throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == Data {
