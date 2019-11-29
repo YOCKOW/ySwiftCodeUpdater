@@ -106,8 +106,7 @@ internal struct _TargetFileInfo {
         info[url] = Info()
         lastURL = url
       } else if key == "LAST-MODIFIED" {
-        guard #available(macOS 10.12, *) else { fatalError("OS is too old.") }
-        guard let date = ISO8601DateFormatter().date(from: value) else { throw _FormatError.invalidDate(line: lineNumber) }
+        guard let date = Date(iso8601String: value) else { throw _FormatError.invalidDate(line: lineNumber) }
         guard info.keys.contains(lastURL) else { throw _FormatError.infoBeforeURL(line: lineNumber) }
         guard info[lastURL]?.lastModified == nil else { throw _FormatError.duplicatedInfo(line: lineNumber) }
         info[lastURL]!.lastModified = date

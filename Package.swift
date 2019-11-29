@@ -27,6 +27,11 @@ let package = Package(
                            "SwiftTemporaryFile",
                            "ySwiftExtensions"]
     ),
-    .testTarget(name: "yCodeUpdaterTests", dependencies: ["CSV", "yCodeUpdater"]),
+    .testTarget(name: "yCodeUpdaterTests",
+                dependencies: [
+                  "CSV",
+                  "SwiftTemporaryFile",
+                  "yCodeUpdater",
+                ]),
   ]
 )

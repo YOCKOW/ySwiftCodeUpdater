@@ -9,9 +9,9 @@ import XCTest
 @testable import yCodeUpdater
 
 import Foundation
+import TemporaryFile
 
 final class CodeUpdaterTests: XCTestCase {
-  @available(OSX 10.12, *)
   func test_update() throws {
     class Delegate: CodeUpdaterDelegate {
       typealias IntermediateDataType = Data
@@ -22,7 +22,7 @@ final class CodeUpdaterTests: XCTestCase {
           URL(string: "https://bot.yockow.jp/-/eTag/strong:test")!,
         ]
       }
-      let destinationURL: URL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)-test.swift")
+      let destinationURL: URL = URL.temporaryDirectory.appendingPathComponent("\(UUID().uuidString)-test.swift")
       func convert<S>(_: S) throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<IntermediateDataType> {
         return """
           struct MyTest {
@@ -58,7 +58,7 @@ final class CodeUpdaterTests: XCTestCase {
       if diffs.isEmpty { return "No difference." }
       var result = ""
       for item in diffs {
-        result += "#\(item.0 + 1): \(item.1.0) !IS NOT! \(item.1.1)\n"
+        result += "#\(item.0 + 1): \"\(item.1.0)\" IS NOT \"\(item.1.1)\"\n"
       }
       return result
     }

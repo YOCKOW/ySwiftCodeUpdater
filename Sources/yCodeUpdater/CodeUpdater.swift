@@ -113,8 +113,6 @@ public struct CodeUpdater {
         return
       }
       let data = self._delegate.outrightConvert()
-    
-      guard #available(macOS 10.12, *) else { fatalError("OS is too old.") }
       
       let temporaryFile = TemporaryFile()
       defer { temporaryFile.closeFile() }
@@ -124,7 +122,7 @@ public struct CodeUpdater {
           temporaryFile.write("//\n")
           temporaryFile.write("// URL: \(url.absoluteURL)\n")
           if let lastModified = _lastModified(of: url) {
-            temporaryFile.write("// Last-Modified: \(ISO8601DateFormatter().string(from: lastModified))\n")
+            temporaryFile.write("// Last-Modified: \(lastModified.iso8601String)\n")
           }
           if let eTag = _eTag(of: url) {
             temporaryFile.write("// ETag: \(eTag.description)\n")
