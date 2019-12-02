@@ -67,6 +67,10 @@ public struct CodeUpdater {
   }
   
   private var _delegate: _Delegate
+  public var identifier: String { return self._delegate.identifier }
+  public var sourceURLs: Array<URL> { return self._delegate.sourceURLs }
+  public var destinationURL: URL { return self._delegate.destinationURL }
+  
   public var forcesToUpdate: Bool = false
   
   public init<D>(delegate: D) where D: CodeUpdaterDelegate {

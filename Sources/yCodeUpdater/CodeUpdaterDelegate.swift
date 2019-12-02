@@ -39,6 +39,14 @@ public protocol CodeUpdaterDelegate {
   func convert<S>(_: S) throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
+extension CodeUpdaterDelegate {
+  public var identifier: String {
+    let id = self.destinationURL.deletingPathExtension().lastPathComponent
+    precondition(!id.isEmpty, "`var identifier: String { get }` must not be empty.")
+    return id
+  }
+}
+
 extension CodeUpdaterDelegate where Self.IntermediateDataType == Data {
   public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<Data> {
     return .init(content: _fetch(sourceURL))
