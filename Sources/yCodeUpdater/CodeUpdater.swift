@@ -8,6 +8,7 @@
 import Foundation
 import HTTP
 import TemporaryFile
+import yExtensions
 
 private let _HEADER = """
 //# DO NOT MODIFY.
@@ -118,31 +119,31 @@ public struct CodeUpdater {
       }
       let data = self._delegate.outrightConvert()
       
-      let temporaryFile = TemporaryFile()
-      defer { temporaryFile.closeFile() }
+      var temporaryFile = try TemporaryFile()
+      defer { try? temporaryFile.close() }
       _do("Write the data to temporary file.") {
-        temporaryFile.write(_HEADER)
+        try temporaryFile.write(contentsOf: _HEADER)
         for url in self._delegate.sourceURLs {
-          temporaryFile.write("//\n")
-          temporaryFile.write("// URL: \(url.absoluteURL)\n")
+          try temporaryFile.write(string: "//\n")
+          try temporaryFile.write(string: "// URL: \(url.absoluteURL)\n")
           if let lastModified = _lastModified(of: url) {
-            temporaryFile.write("// Last-Modified: \(lastModified.iso8601String)\n")
+            try temporaryFile.write(string: "// Last-Modified: \(lastModified.iso8601String)\n")
           }
           if let eTag = _eTag(of: url) {
-            temporaryFile.write("// ETag: \(eTag.description)\n")
+            try temporaryFile.write(string: "// ETag: \(eTag.description)\n")
           }
         }
         temporaryFile.write("\n")
-        temporaryFile.write(data)
+        try temporaryFile.write(contentsOf: data)
       }
       
       let backupURL = destURL.appendingPathExtension("old")
       _do("Copy the temporary file to the destination.") {
-        if destURL.isExistingLocalFileURL {
+        if destURL.isExistingLocalFile {
           try FileManager.default.moveItem(at: destURL, to: backupURL)
         }
-        temporaryFile.copy(to: destURL)
-        if backupURL.isExistingLocalFileURL {
+        try temporaryFile.copy(to: destURL)
+        if backupURL.isExistingLocalFile {
           try FileManager.default.removeItem(at: backupURL)
         }
       }

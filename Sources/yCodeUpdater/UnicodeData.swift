@@ -8,6 +8,7 @@
 import BonaFideCharacterSet
 import Foundation
 import yExtensions
+import yProtocols
 
 private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.html")!
 private func _unicodeLicenseRawHTML() -> String {
@@ -64,6 +65,20 @@ extension ClosedRange where Bound == Unicode.Scalar {
 }
 
 open class UnicodeData {
+  public enum Error: LocalizedError {
+    case noData
+    case nonUTF8
+    
+    public var errorDescription: String? {
+      switch self {
+      case .noData:
+        return "No data."
+      case .nonUTF8:
+        return "The encoding of given string is not UTF-8."
+      }
+    }
+  }
+  
   public struct Row {
     public private(set) var data: (range: ClosedRange<Unicode.Scalar>, columns: Array<String>)?
     public private(set) var comment: String?
@@ -110,16 +125,23 @@ open class UnicodeData {
     }
   }
   
-  public init(_ fileHandle: FileHandle) {
+  public init<FH>(_ fileHandle: FH) throws where FH: FileHandleProtocol {
     self.rows = []
     
+    var fileHandle = fileHandle
     while true {
-      let lineData = fileHandle.readData(toByte: 0x0A)
-      if lineData.isEmpty { break }
-      guard let line = String(data: lineData, encoding: .utf8) else { fatalError("Unexpected Data.") }
+      guard let lineData = try fileHandle.read(toByte: 0x0A), !lineData.isEmpty else {
+        break
+      }
+      guard let line = String(data: lineData, encoding: .utf8) else { throw Error.nonUTF8 }
       if let row = Row(line) {
         self.rows.append(row)
       }
     }
+    if rows.isEmpty { throw Error.noData }
+  }
+  
+  public convenience init(_ fileHandle: FileHandle) throws {
+    try self.init(AnyFileHandle(fileHandle))
   }
 }

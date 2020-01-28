@@ -79,8 +79,8 @@ internal struct _TargetFileInfo {
     var lineNumber: UInt = 0
     var lastURL: URL! = nil
     while true {
-      lineData = fileHandle.readData(toByte: 0x0A)
-      if lineData.isEmpty { break }
+      guard let data = try fileHandle.read(toByte: 0x0A), !data.isEmpty else { break }
+      lineData = data
 
       lineNumber += 1
       guard var line = String(data: lineData, encoding: .utf8)?.trimmingUnicodeScalars(in: .whitespacesAndNewlines) else {

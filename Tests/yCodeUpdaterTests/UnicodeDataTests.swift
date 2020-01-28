@@ -17,7 +17,7 @@ final class UnicodeDataTests: XCTestCase {
     XCTAssertEqual(firstLine, "UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE")
   }
   
-  func test_data() {
+  func test_data() throws {
     let string = """
     # Bidi_Class=Left_To_Right
 
@@ -36,10 +36,10 @@ final class UnicodeDataTests: XCTestCase {
     XCTAssertEqual(data.rows[3].data?.range, "\u{00AA}"..."\u{00AA}")
     
     
-    let temporaryFile = TemporaryFile()
-    temporaryFile.write(string)
-    temporaryFile.seek(toFileOffset: 0)
-    data = UnicodeData(temporaryFile)
+    var temporaryFile = try TemporaryFile()
+    try temporaryFile.write(string: string)
+    try temporaryFile.seek(toOffset: 0)
+    data = try UnicodeData(temporaryFile)
     XCTAssertNil(data.rows[0].data)
     XCTAssertEqual(data.rows[0].comment, "Bidi_Class=Left_To_Right")
     XCTAssertEqual(data.rows[2].data?.range, "\u{0061}"..."\u{007A}")
