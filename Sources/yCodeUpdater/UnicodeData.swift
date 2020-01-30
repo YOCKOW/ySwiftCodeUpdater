@@ -7,6 +7,7 @@
  
 import BonaFideCharacterSet
 import Foundation
+import HTTP
 import yExtensions
 import yProtocols
 
@@ -143,5 +144,12 @@ open class UnicodeData {
   
   public convenience init(_ fileHandle: FileHandle) throws {
     try self.init(AnyFileHandle(fileHandle))
+  }
+  
+  public convenience init(url: URL) throws {
+    let response = try url.response(to: URL.Request())
+    guard let data = response.content else {throw Error.noData }
+    guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
+    self.init(string)
   }
 }

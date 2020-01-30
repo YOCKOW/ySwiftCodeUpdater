@@ -47,6 +47,11 @@ final class UnicodeDataTests: XCTestCase {
     XCTAssertEqual(data.rows[2].comment, "L&  [26] LATIN SMALL LETTER A..LATIN SMALL LETTER Z")
     XCTAssertEqual(data.rows[3].data?.range, "\u{00AA}"..."\u{00AA}")
   }
+  
+  func test_url() {
+    let url = URL(string: "https://unicode.org/Public/UNIDATA/NormalizationCorrections.txt")!
+    XCTAssertNoThrow(try UnicodeData(url: url))
+  }
 }
 
 
