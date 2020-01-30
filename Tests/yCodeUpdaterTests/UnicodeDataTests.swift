@@ -9,6 +9,7 @@ import XCTest
 @testable import yCodeUpdater
 
 import TemporaryFile
+import Ranges
 
 final class UnicodeDataTests: XCTestCase {
   func test_license() {
@@ -51,6 +52,17 @@ final class UnicodeDataTests: XCTestCase {
   func test_url() {
     let url = URL(string: "https://unicode.org/Public/UNIDATA/NormalizationCorrections.txt")!
     XCTAssertNoThrow(try UnicodeData(url: url))
+  }
+  
+  func test_multipleRanges() {
+    let string = """
+    0000..001F;
+    0020..002F;
+    0040..004F;
+    """
+    let multipleRanges = UnicodeData(string).multipleRanges
+    XCTAssertEqual(multipleRanges.ranges,
+                   ["\u{0000}"...."\u{002F}", "\u{0040}"...."\u{004F}"])
   }
 }
 

@@ -8,6 +8,7 @@
 import BonaFideCharacterSet
 import Foundation
 import HTTP
+import Ranges
 import yExtensions
 import yProtocols
 
@@ -62,6 +63,18 @@ extension ClosedRange where Bound == Unicode.Scalar {
     default:
       preconditionFailure("Unexpected Range Expression.")
     }
+  }
+  
+  fileprivate var _valueRange: ClosedRange<UInt32> {
+    return self.lowerBound.value...self.upperBound.value
+  }
+}
+
+extension AnyRange where Bound == UInt32 {
+  fileprivate var _unicodeScalarRange: AnyRange<Unicode.Scalar> {
+    guard case .included(let lower) = self.bounds?.lower, let lowerScalar = Unicode.Scalar(lower) else { fatalError("Unexpected Lower Value.") }
+    guard case .included(let upper) = self.bounds?.upper, let upperScalar = Unicode.Scalar(upper) else { fatalError("Unexpected Upper Value.") }
+    return lowerScalar....upperScalar
   }
 }
 
@@ -151,5 +164,19 @@ open class UnicodeData {
     guard let data = response.content else {throw Error.noData }
     guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
     self.init(string)
+  }
+}
+
+
+extension UnicodeData {
+  /// Returns simple ranges of `Unicode.Scalar`.
+  open var multipleRanges: MultipleRanges<Unicode.Scalar> {
+    // Unicode.Scalar is not countable... so,
+    var valueRanges = MultipleRanges<UInt32>()
+    for row in self.rows {
+      guard let valueRange = row.data?.range._valueRange else { continue }
+      valueRanges.insert(valueRange)
+    }
+    return .init(valueRanges.ranges.map({ $0._unicodeScalarRange }))
   }
 }
