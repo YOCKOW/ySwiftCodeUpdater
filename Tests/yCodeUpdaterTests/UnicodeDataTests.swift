@@ -64,6 +64,19 @@ final class UnicodeDataTests: XCTestCase {
     XCTAssertEqual(multipleRanges.ranges,
                    ["\u{0000}"...."\u{002F}", "\u{0040}"...."\u{004F}"])
   }
+  
+  func test_split() throws {
+    let string = """
+    0000..001F; A
+    0020..002F; A
+    0040..004F; B
+    0060..006F; B
+    """
+    let dic = try UnicodeData(string).split(keyColumn: 0)
+    XCTAssertEqual(dic.keys.count, 2)
+    XCTAssertEqual(dic["A"]?.ranges, ["\u{0000}"...."\u{002F}"])
+    XCTAssertEqual(dic["B"]?.ranges, ["\u{0040}"...."\u{004F}", "\u{0060}"...."\u{006F}"])
+  }
 }
 
 

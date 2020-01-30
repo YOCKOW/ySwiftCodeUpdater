@@ -55,6 +55,7 @@ extension UnicodeDataTests {
         ("test_data", test_data),
         ("test_license", test_license),
         ("test_multipleRanges", test_multipleRanges),
+        ("test_split", test_split),
         ("test_url", test_url),
     ]
 }

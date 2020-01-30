@@ -78,10 +78,17 @@ extension AnyRange where Bound == UInt32 {
   }
 }
 
+extension MultipleRanges where Bound == UInt32 {
+  fileprivate var _unicodeScalarRanges: MultipleRanges<Unicode.Scalar> {
+    return .init(self.ranges.map({ $0._unicodeScalarRange }))
+  }
+}
+
 open class UnicodeData {
   public enum Error: LocalizedError {
     case noData
     case nonUTF8
+    case outOfRange
     
     public var errorDescription: String? {
       switch self {
@@ -89,6 +96,8 @@ open class UnicodeData {
         return "No data."
       case .nonUTF8:
         return "The encoding of given string is not UTF-8."
+      case .outOfRange:
+        return "Out of range."
       }
     }
   }
@@ -177,6 +186,22 @@ extension UnicodeData {
       guard let valueRange = row.data?.range._valueRange else { continue }
       valueRanges.insert(valueRange)
     }
-    return .init(valueRanges.ranges.map({ $0._unicodeScalarRange }))
+    return valueRanges._unicodeScalarRanges
+  }
+  
+  /// Returns a dictionary whose key is a string at `keyColumn` and whose value is its ranges.
+  open func split(keyColumn: Int = 0) throws -> [String: MultipleRanges<Unicode.Scalar>] {
+    var preresult: [String: MultipleRanges<UInt32>] = [:]
+    for row in self.rows {
+      guard let data = row.data else { continue }
+      if data.columns.count <= keyColumn { throw Error.outOfRange }
+      let key = data.columns[keyColumn]
+      let valueRange = data.range._valueRange
+      if !preresult.keys.contains(key) {
+        preresult[key] = .init()
+      }
+      preresult[key]!.insert(valueRange)
+    }
+    return preresult.reduce(into: [:]) { $0[$1.key] = $1.value._unicodeScalarRanges }
   }
 }
