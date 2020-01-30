@@ -189,6 +189,23 @@ extension UnicodeData {
     return valueRanges._unicodeScalarRanges
   }
   
+  /// Returns a range-dictionary converting columns.
+  ///
+  /// `T` must conform to `Equatable` for practical uses.
+  open func rangeDictionary<T>(converter: ([String]) throws -> T) rethrows -> RangeDictionary<Unicode.Scalar, T> where T: Equatable {
+    var preresult = RangeDictionary<UInt32, T>()
+    for row in self.rows {
+      guard let data = row.data else { continue }
+      let range = data.range._valueRange
+      let value = try converter(data.columns)
+      preresult.insert(value, forRange: AnyRange(range))
+    }
+    return preresult.reduce(into: RangeDictionary<Unicode.Scalar, T>()) { (dic, pre) in
+      let (range, value) = pre
+      dic.insert(value, forRange: range._unicodeScalarRange)
+    }
+  }
+  
   /// Returns a dictionary whose key is a string at `keyColumn` and whose value is its ranges.
   open func split(keyColumn: Int = 0) throws -> [String: MultipleRanges<Unicode.Scalar>] {
     var preresult: [String: MultipleRanges<UInt32>] = [:]
