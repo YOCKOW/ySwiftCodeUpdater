@@ -144,7 +144,7 @@ open class CodeUpdaterManager {
   }
   
   /// - parameter arguments: Expected to be the same with `ARGV`.
-  public init(arguments: Array<String> = ProcessInfo.processInfo.arguments) {
+  public init(arguments: Array<String> = .init(ProcessInfo.processInfo.arguments.dropFirst())) {
     self._arguments = _Arguments(arguments)
   }
   
