@@ -68,3 +68,9 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == CSVReader {
     return .init(content: reader)
   }
 }
+
+extension CodeUpdaterDelegate where Self.IntermediateDataType: UnicodeData {
+  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType> {
+    return .init(content: try IntermediateDataType(url: sourceURL))
+  }
+}
