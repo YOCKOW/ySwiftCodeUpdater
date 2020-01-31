@@ -77,6 +77,7 @@ public final class CodeUpdater {
   private var _convertedData: Data? = nil
   public func convertedData() -> Data {
     if self._convertedData == nil {
+      _viewInfo("\(self.identifier): Start data conversion.")
       self._convertedData = self._delegate.outrightConvert()
     }
     return self._convertedData!
