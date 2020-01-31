@@ -168,7 +168,7 @@ open class UnicodeData {
     try self.init(AnyFileHandle(fileHandle))
   }
   
-  public convenience init(url: URL) throws {
+  public convenience required init(url: URL) throws {
     let response = try url.response(to: URL.Request())
     guard let data = response.content else {throw Error.noData }
     guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
