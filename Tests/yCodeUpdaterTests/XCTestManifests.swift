@@ -54,6 +54,10 @@ extension UnicodeDataTests {
     static let __allTests__UnicodeDataTests = [
         ("test_data", test_data),
         ("test_license", test_license),
+        ("test_multipleRanges", test_multipleRanges),
+        ("test_rangeDictionary", test_rangeDictionary),
+        ("test_split", test_split),
+        ("test_url", test_url),
     ]
 }
 

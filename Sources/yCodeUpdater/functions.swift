@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  functions.swift
-   © 2019 YOCKOW.
+   © 2019-2020 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -11,6 +11,7 @@ import HTTP
 import NetworkGear
 import TemporaryFile
 import yExtensions
+import yNewAPI
 
 private var _indentLevel = 0
 private func _indent() -> String { return String(repeating: " ", count: _indentLevel * 4) }
@@ -91,33 +92,21 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
   }
   return _do(message) {
     let process = Process()
-    if #available(macOS 10.13, *) {
-      process.executableURL = executableURL
-      if let cd = currentDirectory {
-        process.currentDirectoryURL = cd
-      }
-    } else {
-      process.launchPath = executableURL.path
-      if let cdPath = currentDirectory?.path {
-        process.currentDirectoryPath = cdPath
-      }
-    }
+    process.newAPI.executableURL = executableURL
+    process.newAPI.currentDirectoryURL = currentDirectory
     process.arguments = arguments
     if let env = environment {
       process.environment = env
     }
-    if let stdin = standardInput?.data(using: .utf8) {
-      process.standardInput = TemporaryFile(contents: stdin)
+    if let stdinData = standardInput?.data(using: .utf8) {
+      let stdin = try TemporaryFile(contents: stdinData)
+      process[.standardInput] = stdin
     }
     
     let stdout = Pipe()
     process.standardOutput = stdout
     
-    if #available(macOS 10.13, *) {
-      try process.run()
-    } else {
-      process.launch()
-    }
+    try process.newAPI.run()
     process.waitUntilExit()
     
     guard process.terminationStatus == 0 else {
