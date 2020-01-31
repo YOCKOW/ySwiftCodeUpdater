@@ -164,7 +164,7 @@ open class CodeUpdaterManager {
       return
     }
     
-    for var updater in self.updaters {
+    for updater in self.updaters {
       if self._skips(fileOf: updater.identifier) {
         _viewInfo("Skip `\(updater.identifier)`.")
         continue

@@ -24,7 +24,7 @@ private func _mustBeOverridden(function: StaticString = #function,
   fatalError("\(function) must be overridden.", file: file, line: line)
 }
 
-public struct CodeUpdater {
+public final class CodeUpdater {
   private struct _Delegate {
     private class _Box {
       var identifier: String { _mustBeOverridden() }
@@ -74,6 +74,14 @@ public struct CodeUpdater {
   
   public var forcesToUpdate: Bool = false
   
+  private var _convertedData: Data? = nil
+  public func convertedData() -> Data {
+    if self._convertedData == nil {
+      self._convertedData = self._delegate.outrightConvert()
+    }
+    return self._convertedData!
+  }
+  
   public init<D>(delegate: D) where D: CodeUpdaterDelegate {
     precondition(delegate.destinationURL.isFileURL, "Destination must be local.")
     self._delegate = _Delegate(delegate)
@@ -117,7 +125,7 @@ public struct CodeUpdater {
         _viewInfo("File at \(destPath) is already up-to-date.")
         return
       }
-      let data = self._delegate.outrightConvert()
+      let data = convertedData()
       
       var temporaryFile = try TemporaryFile()
       defer { try? temporaryFile.close() }
