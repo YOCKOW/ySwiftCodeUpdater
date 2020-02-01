@@ -14,7 +14,7 @@ let package = Package(
     .package(url: "https://github.com/YOCKOW/SwiftBonaFideCharacterSet.git", from: "1.6.1"),
     .package(url: "https://github.com/yaslab/CSV.swift.git", from: "2.4.2"),
     .package(url: "https://github.com/YOCKOW/SwiftNetworkGear.git", from: "0.10.2"),
-    .package(url: "https://github.com/YOCKOW/SwiftRanges.git", from: "3.0.1"),
+    .package(url: "https://github.com/YOCKOW/SwiftRanges.git", from: "3.0.2"),
     .package(url: "https://github.com/YOCKOW/SwiftTemporaryFile.git", from: "3.2.0"),
     .package(url: "https://github.com/YOCKOW/ySwiftExtensions.git", from: "0.8.0"),
   ],

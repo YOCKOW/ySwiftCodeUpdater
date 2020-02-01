@@ -45,42 +45,28 @@ public func unicodeLicense() -> String {
   return _unicodeLicense
 }
 
+extension Unicode.Scalar {
+  /// Represents the Unicode scalar value.
+  public typealias Value = UInt32
+}
 
-extension ClosedRange where Bound == Unicode.Scalar {
+extension ClosedRange where Bound == Unicode.Scalar.Value {
   fileprivate init(_ string: String) {
     let startAndEnd = string.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
     switch startAndEnd.count {
     case 1:
       guard let startValue = UInt32(startAndEnd[0], radix: 0x10) else { preconditionFailure("Invalid Value for Unicode Scalar.") }
-      self.init(uncheckedBounds: (lower: Unicode.Scalar(startValue)!, upper: Unicode.Scalar(startValue)!))
+      self.init(uncheckedBounds: (lower: startValue, upper: startValue))
     case 2:
       guard let startValue = UInt32(startAndEnd[0], radix: 0x10),
             let endValue = UInt32(startAndEnd[1], radix:0x10)
       else {
         preconditionFailure("Invalid Value for Unicode Scalar.")
       }
-      self.init(uncheckedBounds: (lower: Unicode.Scalar(startValue)!, upper: Unicode.Scalar(endValue)!))
+      self.init(uncheckedBounds: (lower: startValue, upper: endValue))
     default:
       preconditionFailure("Unexpected Range Expression.")
     }
-  }
-  
-  fileprivate var _valueRange: ClosedRange<UInt32> {
-    return self.lowerBound.value...self.upperBound.value
-  }
-}
-
-extension AnyRange where Bound == UInt32 {
-  fileprivate var _unicodeScalarRange: AnyRange<Unicode.Scalar> {
-    guard case .included(let lower) = self.bounds?.lower, let lowerScalar = Unicode.Scalar(lower) else { fatalError("Unexpected Lower Value.") }
-    guard case .included(let upper) = self.bounds?.upper, let upperScalar = Unicode.Scalar(upper) else { fatalError("Unexpected Upper Value.") }
-    return lowerScalar....upperScalar
-  }
-}
-
-extension MultipleRanges where Bound == UInt32 {
-  fileprivate var _unicodeScalarRanges: MultipleRanges<Unicode.Scalar> {
-    return .init(self.ranges.map({ $0._unicodeScalarRange }))
   }
 }
 
@@ -103,28 +89,29 @@ open class UnicodeData {
   }
   
   public struct Row {
-    public private(set) var data: (range: ClosedRange<Unicode.Scalar>, columns: Array<String>)?
+    public typealias Payload = (range: ClosedRange<Unicode.Scalar.Value>, columns: [String])
+    public private(set) var payload: Payload?
     public private(set) var comment: String?
     
     public init?<S>(_ line: S) where S: StringProtocol {
       if line.isEmpty || line.consists(of: .whitespacesAndNewlines) { return nil }
       
-      self.data = nil
+      self.payload = nil
       self.comment = nil
       
-      let (dataString, comment) = line.splitOnce(separator: "#")
-      if !dataString.isEmpty {
-        let columns = dataString.split(separator: ";", omittingEmptySubsequences: false).map{
+      let (payloadString, comment) = line.splitOnce(separator: "#")
+      if !payloadString.isEmpty {
+        let columns = payloadString.split(separator: ";", omittingEmptySubsequences: false).map {
           $0.trimmingUnicodeScalars(in: .whitespacesAndNewlines)
         }
         guard columns.count > 1 else { return nil }
-        self.data = (range: .init(columns[0]), columns: Array<String>(columns[1...]))
+        self.payload = (range: .init(columns[0]), columns: .init(columns.dropFirst()))
       }
       if let comment = comment {
         self.comment = comment.trimmingUnicodeScalars(in: .whitespacesAndNewlines)
       }
       
-      if self.data == nil && self.comment == nil { return nil }
+      if self.payload == nil && self.comment == nil { return nil }
     }
   }
   
@@ -179,46 +166,33 @@ open class UnicodeData {
 
 extension UnicodeData {
   /// Returns simple ranges of `Unicode.Scalar`.
-  open var multipleRanges: MultipleRanges<Unicode.Scalar> {
-    // Unicode.Scalar is not countable... so,
-    var valueRanges = MultipleRanges<UInt32>()
-    for row in self.rows {
-      guard let valueRange = row.data?.range._valueRange else { continue }
-      valueRanges.insert(valueRange)
-    }
-    return valueRanges._unicodeScalarRanges
+  open var multipleRanges: MultipleRanges<Unicode.Scalar.Value> {
+    return .init(self.rows.compactMap({ ($0.payload?.range).flatMap({ AnyRange($0) }) }))
   }
   
   /// Returns a range-dictionary converting columns.
   ///
   /// `T` must conform to `Equatable` for practical uses.
-  open func rangeDictionary<T>(converter: ([String]) throws -> T) rethrows -> RangeDictionary<Unicode.Scalar, T> where T: Equatable {
-    var preresult = RangeDictionary<UInt32, T>()
-    for row in self.rows {
-      guard let data = row.data else { continue }
-      let range = data.range._valueRange
-      let value = try converter(data.columns)
-      preresult.insert(value, forRange: AnyRange(range))
+  open func rangeDictionary<T>(converter: ([String]) throws -> T) rethrows -> RangeDictionary<Unicode.Scalar.Value, T> where T: Equatable {
+    func _converted(row: Row) throws -> (AnyRange<Unicode.Scalar.Value>, T)? {
+      guard let payload = row.payload else { return nil }
+      return (AnyRange(payload.range), try converter(payload.columns))
     }
-    return preresult.reduce(into: RangeDictionary<Unicode.Scalar, T>()) { (dic, pre) in
-      let (range, value) = pre
-      dic.insert(value, forRange: range._unicodeScalarRange)
-    }
+    return .init(try self.rows.compactMap({ try _converted(row: $0) }))
   }
   
   /// Returns a dictionary whose key is a string at `keyColumn` and whose value is its ranges.
-  open func split(keyColumn: Int = 0) throws -> [String: MultipleRanges<Unicode.Scalar>] {
-    var preresult: [String: MultipleRanges<UInt32>] = [:]
+  open func split(keyColumn: Int = 0) throws -> [String: MultipleRanges<Unicode.Scalar.Value>] {
+    var result: [String: MultipleRanges<Unicode.Scalar.Value>] = [:]
     for row in self.rows {
-      guard let data = row.data else { continue }
-      if data.columns.count <= keyColumn { throw Error.outOfRange }
-      let key = data.columns[keyColumn]
-      let valueRange = data.range._valueRange
-      if !preresult.keys.contains(key) {
-        preresult[key] = .init()
+      guard let payload = row.payload else { continue }
+      if payload.columns.count <= keyColumn { throw Error.outOfRange }
+      let key = payload.columns[keyColumn]
+      if !result.keys.contains(key) {
+        result[key] = .init()
       }
-      preresult[key]!.insert(valueRange)
+      result[key]!.insert(payload.range)
     }
-    return preresult.reduce(into: [:]) { $0[$1.key] = $1.value._unicodeScalarRanges }
+    return result
   }
 }
