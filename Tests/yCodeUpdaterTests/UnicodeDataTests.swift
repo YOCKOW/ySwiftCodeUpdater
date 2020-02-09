@@ -29,24 +29,24 @@ final class UnicodeDataTests: XCTestCase {
     
     var data = UnicodeData(string)
     guard data.rows.count == 4 else { XCTFail(); return }
-    XCTAssertNil(data.rows[0].data)
+    XCTAssertNil(data.rows[0].payload)
     XCTAssertEqual(data.rows[0].comment, "Bidi_Class=Left_To_Right")
-    XCTAssertEqual(data.rows[1].data?.range, "\u{0041}"..."\u{005A}")
-    XCTAssertEqual(data.rows[1].data?.columns, ["L"])
+    XCTAssertEqual(data.rows[1].payload?.range, 0x0041...0x005A)
+    XCTAssertEqual(data.rows[1].payload?.columns, ["L"])
     XCTAssertEqual(data.rows[1].comment, "L&  [26] LATIN CAPITAL LETTER A..LATIN CAPITAL LETTER Z")
-    XCTAssertEqual(data.rows[3].data?.range, "\u{00AA}"..."\u{00AA}")
+    XCTAssertEqual(data.rows[3].payload?.range, 0x00AA...0x00AA)
     
     
     var temporaryFile = try TemporaryFile()
     try temporaryFile.write(string: string)
     try temporaryFile.seek(toOffset: 0)
     data = try UnicodeData(temporaryFile)
-    XCTAssertNil(data.rows[0].data)
+    XCTAssertNil(data.rows[0].payload)
     XCTAssertEqual(data.rows[0].comment, "Bidi_Class=Left_To_Right")
-    XCTAssertEqual(data.rows[2].data?.range, "\u{0061}"..."\u{007A}")
-    XCTAssertEqual(data.rows[2].data?.columns, ["L"])
+    XCTAssertEqual(data.rows[2].payload?.range, 0x0061...0x007A)
+    XCTAssertEqual(data.rows[2].payload?.columns, ["L"])
     XCTAssertEqual(data.rows[2].comment, "L&  [26] LATIN SMALL LETTER A..LATIN SMALL LETTER Z")
-    XCTAssertEqual(data.rows[3].data?.range, "\u{00AA}"..."\u{00AA}")
+    XCTAssertEqual(data.rows[3].payload?.range, 0x00AA...0x00AA)
   }
   
   func test_url() {
@@ -62,7 +62,7 @@ final class UnicodeDataTests: XCTestCase {
     """
     let multipleRanges = UnicodeData(string).multipleRanges
     XCTAssertEqual(multipleRanges.ranges,
-                   ["\u{0000}"...."\u{002F}", "\u{0040}"...."\u{004F}"])
+                   [0x0000....0x002F, 0x0040....0x004F])
   }
   
   func test_rangeDictionary() {
@@ -74,9 +74,9 @@ final class UnicodeDataTests: XCTestCase {
     """
     let dic = UnicodeData(string).rangeDictionary { $0.first! }
     XCTAssertEqual(dic.count, 3)
-    XCTAssertEqual(dic["\u{0012}"], "A")
-    XCTAssertEqual(dic["\u{0045}"], "B")
-    XCTAssertEqual(dic["\u{0067}"], "B")
+    XCTAssertEqual(dic[0x0012], "A")
+    XCTAssertEqual(dic[0x0045], "B")
+    XCTAssertEqual(dic[0x0067], "B")
   }
   
   func test_split() throws {
@@ -88,8 +88,8 @@ final class UnicodeDataTests: XCTestCase {
     """
     let dic = try UnicodeData(string).split(keyColumn: 0)
     XCTAssertEqual(dic.keys.count, 2)
-    XCTAssertEqual(dic["A"]?.ranges, ["\u{0000}"...."\u{002F}"])
-    XCTAssertEqual(dic["B"]?.ranges, ["\u{0040}"...."\u{004F}", "\u{0060}"...."\u{006F}"])
+    XCTAssertEqual(dic["A"]?.ranges, [0x0000....0x002F])
+    XCTAssertEqual(dic["B"]?.ranges, [0x0040....0x004F, 0x0060....0x006F])
   }
 }
 

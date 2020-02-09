@@ -13,7 +13,7 @@ open class CodeUpdaterManager {
   
   open var updaters: Array<CodeUpdater> {
     get {
-      return self._updaters.values.sorted(by: { $0.identifier < $1.identifier })
+      return self._updaters.values.sorted(by: { $0.identifier.lowercased() < $1.identifier.lowercased() })
     }
     set(newUpdaters) {
       self._updaters = newUpdaters.reduce(into: [:]) { $0[$1.identifier] = $1 }
@@ -30,8 +30,8 @@ open class CodeUpdaterManager {
     self.add(CodeUpdater(delegate: delegate))
   }
   
-  private enum _Arguments {
-    enum _Identifiers {
+  private enum _Arguments: Equatable {
+    enum _Identifiers: Equatable {
       case all
       case identifiers(Set<String>)
       
@@ -43,6 +43,7 @@ open class CodeUpdaterManager {
     }
     
     case help
+    case showUpdaters
     case options(force: _Identifiers?, skip: _Identifiers?)
     
     mutating func add(force id: String) {
@@ -77,6 +78,8 @@ open class CodeUpdaterManager {
       let nn = arguments.count
       if nn > 0 && (arguments[0] == "-h" || arguments[0] == "--help") {
         self = .help
+      } else if nn > 0 && (arguments[0] == "-u" || arguments[0] == "--show-updaters") {
+        self = .showUpdaters
       } else {
         self = .options(force: nil, skip: nil)
         
@@ -144,13 +147,15 @@ open class CodeUpdaterManager {
   }
   
   /// - parameter arguments: Expected to be the same with `ARGV`.
-  public init(arguments: Array<String> = ProcessInfo.processInfo.arguments) {
+  public init(arguments: Array<String> = .init(ProcessInfo.processInfo.arguments.dropFirst())) {
     self._arguments = _Arguments(arguments)
   }
   
   open func viewHelp() {
     print("""
     options:
+      -h, --help               Show this message.
+      -u, --show-updaters      Show information about updaters.
       -f, --foce "identifier"  Forces to update a file specified by the identifier.
       -s, --skip "identifier"  Skips a file specified by the identifier.
       --force-all              Forces to update all files.
@@ -158,9 +163,41 @@ open class CodeUpdaterManager {
     """)
   }
   
+  open func showUpdaters() {
+    func _show(updater: CodeUpdater) {
+      print("ID: \(updater.identifier)")
+      let sourceURLs = updater.sourceURLs
+      switch sourceURLs.count {
+      case 0:
+        break
+      case 1:
+        print("├ Source URL: \(sourceURLs.first!)")
+      default:
+        print("├ URLs where the source files are located at:")
+        for ii in 0..<(sourceURLs.count - 2) {
+          print("│├ \(sourceURLs[ii].absoluteString)")
+        }
+        print("│└ \(sourceURLs.last!.absoluteString)")
+      }
+      print("└ Destination Path: \(updater.destinationURL.path)")
+    }
+    for updater in self.updaters {
+      _show(updater: updater)
+    }
+  }
+  
+  internal var _shouldViewHelp: Bool { return self._arguments == .help }
+  
+  internal var _shouldShowUpdaters: Bool { return self._arguments == .showUpdaters }
+  
   open func run() {
-    if case .help = self._arguments {
+    if self._shouldViewHelp {
       self.viewHelp()
+      return
+    }
+    
+    if self._shouldShowUpdaters {
+      self.showUpdaters()
       return
     }
     
