@@ -16,5 +16,8 @@ final class CodeUpdaterManagerTests: XCTestCase {
     
     manager = CodeUpdaterManager(arguments: ["--force-all"])
     XCTAssertTrue(manager._forcesToUpdate(fileOf: "AnyFile"))
+    
+    manager = CodeUpdaterManager(arguments: ["--show-updaters"])
+    XCTAssertTrue(manager._shouldShowUpdaters)
   }
 }
