@@ -39,6 +39,10 @@ public protocol CodeUpdaterDelegate {
   func convert<S>(_: S) throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
+public protocol StringCodeUpdaterDelegate: CodeUpdaterDelegate {
+  func convert<S>(_: S) throws -> String where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
+}
+
 extension CodeUpdaterDelegate {
   public var identifier: String {
     let id = self.destinationURL.deletingPathExtension().lastPathComponent
@@ -72,5 +76,14 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == CSVReader {
 extension CodeUpdaterDelegate where Self.IntermediateDataType: UnicodeData {
   public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType> {
     return .init(content: try IntermediateDataType(url: sourceURL))
+  }
+}
+
+extension StringCodeUpdaterDelegate {
+  public func convert<S>(_ intermediates: S) throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
+    guard let data = try self.convert(intermediates).data(using: .utf8) else {
+      throw CodeUpdaterError.cannotConvertToData
+    }
+    return data
   }
 }
