@@ -17,6 +17,7 @@ let package = Package(
     .package(url: "https://github.com/YOCKOW/SwiftRanges.git", from: "3.0.2"),
     .package(url: "https://github.com/YOCKOW/SwiftStringComposition.git", from: "1.0.0"),
     .package(url: "https://github.com/YOCKOW/SwiftTemporaryFile.git", from: "3.2.0"),
+    .package(url: "https://github.com/YOCKOW/SwiftUnicodeSupplement.git", "0.7.1"..<"2.0.0"),
     .package(url: "https://github.com/YOCKOW/ySwiftExtensions.git", "0.9.0-alpha.001"..<"1.0.0"),
   ],
   targets: [
@@ -28,6 +29,7 @@ let package = Package(
                            "SwiftNetworkGear",
                            "SwiftRanges",
                            "SwiftStringComposition",
+                           "SwiftUnicodeSupplement",
                            "SwiftTemporaryFile",
                            "ySwiftExtensions"]
     ),

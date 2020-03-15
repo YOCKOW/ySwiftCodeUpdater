@@ -45,6 +45,7 @@ open class CodeUpdaterManager {
     case help
     case showUpdaters
     case options(force: _Identifiers?, skip: _Identifiers?)
+    case only(String)
     
     mutating func add(force id: String) {
       guard case .options(force: let nilableF, skip: let nilableS) = self else { fatalError("Unexpected") }
@@ -80,6 +81,14 @@ open class CodeUpdaterManager {
         self = .help
       } else if nn > 0 && (arguments[0] == "-u" || arguments[0] == "--show-updaters") {
         self = .showUpdaters
+      } else if arguments[0] == "--only" || arguments[0].hasPrefix("--only=") {
+        if arguments[0] == "--only" {
+          precondition(nn > 1, "No value for `--only`.")
+          self = .only(arguments[1])
+        } else {
+          guard let value = arguments[0].splitOnce(separator: "=").1 else { fatalError("`--only` must have a value.") }
+          self = .only(String(value))
+        }
       } else {
         self = .options(force: nil, skip: nil)
         
@@ -127,22 +136,34 @@ open class CodeUpdaterManager {
   private var _arguments: _Arguments
   
   internal func _forcesToUpdate(fileOf identifier: String) -> Bool {
-    guard case .options(force: let force?, skip: _) = self._arguments else { return false }
-    switch force {
-    case .all:
-      return true
-    case .identifiers(let set):
-      return set.contains(identifier)
+    switch self._arguments {
+    case .only(let onlyId):
+      return identifier == onlyId
+    case .options(force: let force?, skip: _):
+      switch force {
+      case .all:
+        return true
+      case .identifiers(let set):
+        return set.contains(identifier)
+      }
+    default:
+      return false
     }
   }
   
   internal func _skips(fileOf identifier: String) -> Bool {
-    guard case .options(force: _, skip: let skip?) = self._arguments else { return false }
-    switch skip {
-    case .all:
-      return true
-    case .identifiers(let set):
-      return set.contains(identifier)
+    switch self._arguments {
+    case .only(let onlyId):
+      return identifier != onlyId
+    case .options(force: _, skip: let skip?):
+      switch skip {
+      case .all:
+        return true
+      case .identifiers(let set):
+        return set.contains(identifier)
+      }
+    default:
+      return false
     }
   }
   
@@ -157,6 +178,7 @@ open class CodeUpdaterManager {
       -h, --help               Show this message.
       -u, --show-updaters      Show information about updaters.
       -f, --foce "identifier"  Forces to update a file specified by the identifier.
+      --only "identifier"      Update only one file specified by the identifier.
       -s, --skip "identifier"  Skips a file specified by the identifier.
       --force-all              Forces to update all files.
       

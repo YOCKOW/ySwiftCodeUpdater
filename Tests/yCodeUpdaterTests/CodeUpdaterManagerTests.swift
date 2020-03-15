@@ -14,6 +14,10 @@ final class CodeUpdaterManagerTests: XCTestCase {
     XCTAssertTrue(manager._forcesToUpdate(fileOf: "Forced"))
     XCTAssertTrue(manager._skips(fileOf: "Skipped"))
     
+    manager = CodeUpdaterManager(arguments: ["--only", "Only"])
+    XCTAssertTrue(manager._forcesToUpdate(fileOf: "Only"))
+    XCTAssertFalse(manager._skips(fileOf: "Only"))
+    
     manager = CodeUpdaterManager(arguments: ["--force-all"])
     XCTAssertTrue(manager._forcesToUpdate(fileOf: "AnyFile"))
     
