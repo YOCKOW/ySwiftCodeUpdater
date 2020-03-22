@@ -20,6 +20,10 @@ internal func _viewInfo(_ message: String) {
   print("\(_indent())ℹ️ \(message)")
 }
 
+public func view(message: String) {
+  _viewInfo(message)
+}
+
 internal func _do<T>(_ message: String, closure: () throws -> T) -> T {
   print("\(_indent())⏳ \(message)")
   do {
