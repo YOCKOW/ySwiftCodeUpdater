@@ -7,7 +7,7 @@ CSV+URL.swift
 
 import CSV
 import Foundation
-import HTTP
+import NetworkGear
 
 extension CSVReader {
   public convenience init(

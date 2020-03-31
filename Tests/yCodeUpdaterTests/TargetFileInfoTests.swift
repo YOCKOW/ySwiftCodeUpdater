@@ -8,7 +8,7 @@
 import Foundation
 import XCTest
 @testable import yCodeUpdater
-import HTTP
+import NetworkGear
 
 final class TargetFileInfoTests: XCTestCase {
   @available(macOS 10.12, *)
@@ -23,7 +23,7 @@ final class TargetFileInfoTests: XCTestCase {
     
     let secondURL = URL(string: "http://example.com/another_data.txt")!
     XCTAssertNil(info.lastModifiedDate(for: secondURL))
-    XCTAssertEqual(info.eTag(for: secondURL), ETag.strong("AnotherDataTxt"))
+    XCTAssertEqual(info.eTag(for: secondURL), HTTPETag.strong("AnotherDataTxt"))
   }
 }
 

@@ -7,7 +7,7 @@
  
 import BonaFideCharacterSet
 import Foundation
-import HTTP
+import NetworkGear
 import yExtensions
 
 
@@ -49,7 +49,7 @@ internal enum _FormatError: LocalizedError {
 internal struct _TargetFileInfo {
   private struct Info {
     var lastModified: Date? = nil
-    var eTag: ETag? = nil
+    var eTag: HTTPETag? = nil
   }
   
   private var _info: [URL: Info]
@@ -111,7 +111,7 @@ internal struct _TargetFileInfo {
         guard info[lastURL]?.lastModified == nil else { throw _FormatError.duplicatedInfo(line: lineNumber) }
         info[lastURL]!.lastModified = date
       } else if key == "ETAG" {
-        guard let eTag = ETag(value) else { throw _FormatError.invalidETag(line: lineNumber) }
+        guard let eTag = HTTPETag(value) else { throw _FormatError.invalidETag(line: lineNumber) }
         guard info.keys.contains(lastURL) else { throw _FormatError.infoBeforeURL(line: lineNumber) }
         guard info[lastURL]?.eTag == nil else { throw _FormatError.duplicatedInfo(line: lineNumber) }
         info[lastURL]!.eTag = eTag
@@ -135,7 +135,7 @@ internal struct _TargetFileInfo {
     return self._info[url]?.lastModified
   }
   
-  internal func eTag(for url: URL) -> ETag? {
+  internal func eTag(for url: URL) -> HTTPETag? {
     return self._info[url]?.eTag
   }
 }

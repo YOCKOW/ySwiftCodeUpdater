@@ -36,6 +36,7 @@ let package = Package(
     .testTarget(name: "yCodeUpdaterTests",
                 dependencies: [
                   "CSV",
+                  "SwiftNetworkGear",
                   "SwiftRanges",
                   "SwiftTemporaryFile",
                   "yCodeUpdater",
