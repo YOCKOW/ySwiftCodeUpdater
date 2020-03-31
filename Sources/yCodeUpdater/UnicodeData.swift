@@ -7,7 +7,7 @@
  
 import BonaFideCharacterSet
 import Foundation
-import HTTP
+import NetworkGear
 import Ranges
 import yExtensions
 import yProtocols

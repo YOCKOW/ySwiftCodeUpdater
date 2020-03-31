@@ -7,7 +7,6 @@
  
 import BonaFideCharacterSet
 import Foundation
-import HTTP
 import NetworkGear
 import TemporaryFile
 import yExtensions
@@ -18,6 +17,10 @@ private func _indent() -> String { return String(repeating: " ", count: _indentL
 
 internal func _viewInfo(_ message: String) {
   print("\(_indent())ℹ️ \(message)")
+}
+
+public func view(message: String) {
+  _viewInfo(message)
 }
 
 internal func _do<T>(_ message: String, closure: () throws -> T) -> T {
@@ -36,7 +39,7 @@ internal func _do<T>(_ message: String, closure: () throws -> T) -> T {
 }
 
 enum _FetchingError: Error {
-  case unexpectedStatusCode(HTTP.StatusCode)
+  case unexpectedStatusCode(HTTPStatusCode)
   case noContent
 }
 
@@ -65,10 +68,10 @@ internal func _lastModified(of url: URL) -> Date? {
   return __lastModified[url].unsafelyUnwrapped
 }
 
-private var __eTags: Dictionary<URL, ETag?> = [:]
-internal func _eTag(of url: URL) -> ETag? {
-  if __eTags[url] == Optional<Optional<ETag>>.none {
-    let eTag: ETag? = _do("Fetch ETag of \(url.absoluteString).") {
+private var __eTags: Dictionary<URL, HTTPETag?> = [:]
+internal func _eTag(of url: URL) -> HTTPETag? {
+  if __eTags[url] == Optional<Optional<HTTPETag>>.none {
+    let eTag: HTTPETag? = _do("Fetch ETag of \(url.absoluteString).") {
       return url.eTag
     }
     __eTags[url] = eTag

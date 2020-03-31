@@ -7,6 +7,7 @@
  
 import CSV
 import Foundation
+import StringComposition
 
 /// Intermediate Data
 ///
@@ -37,6 +38,14 @@ public protocol CodeUpdaterDelegate {
   
   func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType>
   func convert<S>(_: S) throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
+}
+
+public protocol StringCodeUpdaterDelegate: CodeUpdaterDelegate {
+  func convert<S>(_: S) throws -> String where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
+}
+
+public protocol StringLinesCodeUpdaterDelegate: CodeUpdaterDelegate {
+  func convert<S>(_: S) throws -> StringLines where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
 extension CodeUpdaterDelegate {
@@ -72,5 +81,23 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == CSVReader {
 extension CodeUpdaterDelegate where Self.IntermediateDataType: UnicodeData {
   public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType> {
     return .init(content: try IntermediateDataType(url: sourceURL))
+  }
+}
+
+extension StringCodeUpdaterDelegate {
+  public func convert<S>(_ intermediates: S) throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
+    guard let data = try self.convert(intermediates).data(using: .utf8) else {
+      throw CodeUpdaterError.cannotConvertToData
+    }
+    return data
+  }
+}
+
+extension StringLinesCodeUpdaterDelegate {
+  public func convert<S>(_ intermediates: S) throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
+    guard let data = try self.convert(intermediates).data(using: .utf8) else {
+      throw CodeUpdaterError.cannotConvertToData
+    }
+    return data
   }
 }

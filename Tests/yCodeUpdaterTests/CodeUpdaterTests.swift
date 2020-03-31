@@ -34,7 +34,7 @@ final class CodeUpdaterTests: XCTestCase {
     }
     
     let delegate = Delegate()
-    var updater = CodeUpdater(delegate: delegate)
+    let updater = CodeUpdater(delegate: delegate)
     updater.forcesToUpdate = true
     updater.update()
     

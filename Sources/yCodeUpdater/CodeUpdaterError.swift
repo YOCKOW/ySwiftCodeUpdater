@@ -7,4 +7,5 @@
 
 public enum CodeUpdaterError: Error {
   case cannotConvertToString
+  case cannotConvertToData
 }

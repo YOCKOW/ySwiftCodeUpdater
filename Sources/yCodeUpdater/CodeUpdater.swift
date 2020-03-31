@@ -6,7 +6,7 @@
 ************************************************************************************************ */
 
 import Foundation
-import HTTP
+import NetworkGear
 import TemporaryFile
 import yExtensions
 
