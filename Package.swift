@@ -13,12 +13,12 @@ let package = Package(
     // Dependencies declare other packages that this package depends on.
     .package(url: "https://github.com/YOCKOW/SwiftBonaFideCharacterSet.git", from: "1.6.2"),
     .package(url: "https://github.com/yaslab/CSV.swift.git", from: "2.4.2"),
-    .package(url: "https://github.com/YOCKOW/SwiftNetworkGear.git", "0.11.0"..<"2.0.0"),
+    .package(url: "https://github.com/YOCKOW/SwiftNetworkGear.git", "0.11.1"..<"2.0.0"),
     .package(url: "https://github.com/YOCKOW/SwiftRanges.git", from: "3.1.0"),
     .package(url: "https://github.com/YOCKOW/SwiftStringComposition.git", from: "1.1.0"),
     .package(url: "https://github.com/YOCKOW/SwiftTemporaryFile.git", from: "3.2.2"),
-    .package(url: "https://github.com/YOCKOW/SwiftUnicodeSupplement.git", "0.7.1"..<"2.0.0"),
-    .package(url: "https://github.com/YOCKOW/ySwiftExtensions.git", "0.9.0"..<"2.0.0"),
+    .package(url: "https://github.com/YOCKOW/SwiftUnicodeSupplement.git", from: "1.0.0"),
+    .package(url: "https://github.com/YOCKOW/ySwiftExtensions.git", "0.9.1"..<"2.0.0"),
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
