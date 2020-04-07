@@ -54,6 +54,11 @@ internal func _fetch(_ url: URL) -> Data {
   }
 }
 
+/// Returns the content of `url`
+public func content(of url: URL) -> Data {
+  return _fetch(url)
+}
+
 // Attributes of URL...
 // TODO: DRY
 

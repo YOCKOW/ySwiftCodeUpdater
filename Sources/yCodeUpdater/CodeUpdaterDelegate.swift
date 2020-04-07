@@ -71,6 +71,15 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == String {
   }
 }
 
+extension CodeUpdaterDelegate where Self.IntermediateDataType == StringLines {
+  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<StringLines> {
+    guard let string = String(data: _fetch(sourceURL), encoding: .utf8) else {
+      throw CodeUpdaterError.cannotConvertToString
+    }
+    return .init(content: StringLines(string, detectIndent: true))
+  }
+}
+
 extension CodeUpdaterDelegate where Self.IntermediateDataType == CSVReader {
   public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<CSVReader> {
     let reader = try CSVReader(url: sourceURL)
