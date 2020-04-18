@@ -81,7 +81,7 @@ open class CodeUpdaterManager {
         self = .help
       } else if nn > 0 && (arguments[0] == "-u" || arguments[0] == "--show-updaters") {
         self = .showUpdaters
-      } else if arguments[0] == "--only" || arguments[0].hasPrefix("--only=") {
+      } else if nn > 0 && (arguments[0] == "--only" || arguments[0].hasPrefix("--only=")) {
         if arguments[0] == "--only" {
           precondition(nn > 1, "No value for `--only`.")
           self = .only(arguments[1])
