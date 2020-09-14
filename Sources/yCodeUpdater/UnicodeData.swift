@@ -138,7 +138,6 @@ open class UnicodeData {
   public init<FH>(_ fileHandle: FH) throws where FH: FileHandleProtocol {
     self.rows = []
     
-    var fileHandle = fileHandle
     while true {
       guard let lineData = try fileHandle.read(toByte: 0x0A), !lineData.isEmpty else {
         break

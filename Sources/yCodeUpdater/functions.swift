@@ -10,7 +10,6 @@ import Foundation
 import NetworkGear
 import TemporaryFile
 import yExtensions
-import yNewAPI
 
 private var _indentLevel = 0
 private func _indent() -> String { return String(repeating: " ", count: _indentLevel * 4) }
@@ -100,8 +99,8 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
   }
   return _do(message) {
     let process = Process()
-    process.newAPI.executableURL = executableURL
-    process.newAPI.currentDirectoryURL = currentDirectory
+    process.executableURL = executableURL
+    process.currentDirectoryURL = currentDirectory
     process.arguments = arguments
     if let env = environment {
       process.environment = env
@@ -114,7 +113,7 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
     let stdout = Pipe()
     process.standardOutput = stdout
     
-    try process.newAPI.run()
+    try process.run()
     process.waitUntilExit()
     
     guard process.terminationStatus == 0 else {
