@@ -32,7 +32,8 @@ private let _python_files: [String] = [
 ]
 private let _swiftPackageRoot = URL(fileURLWithPath: #file, isDirectory: false).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 private let _buildDirectory = _swiftPackageRoot.appendingPathComponent(".build", isDirectory: true)
-private let _gybSyntaxSupportDirectory = _buildDirectory.appendingPathComponent("python_modules", isDirectory: true).appendingPathComponent("gyb_syntax_support", isDirectory: true)
+private let _pythonModulesDirectory = _buildDirectory.appendingPathComponent("python_modules", isDirectory: true)
+private let _gybSyntaxSupportDirectory = _pythonModulesDirectory.appendingPathComponent("gyb_syntax_support", isDirectory: true)
 
 private func _downloadPythonFiles() {
   _do("Downlod python files to determine Swift keywords.") {
@@ -40,7 +41,7 @@ private func _downloadPythonFiles() {
     
     if !manager.fileExists(atPath: _gybSyntaxSupportDirectory.path) {
       _do("Create directory at \"\(_gybSyntaxSupportDirectory.path)\".") {
-        try manager.createDirectory(at: _gybSyntaxSupportDirectory, withIntermediateDirectories: true)
+        try manager.createDirectoryWithIntermediateDirectories(at: _gybSyntaxSupportDirectory)
       }
     }
     
@@ -74,9 +75,9 @@ private let _swiftKeywords: Set<String> = ({ () -> Set<String> in
       }
     }
     
-    guard let keywords = _run(python, currentDirectory: _gybSyntaxSupportDirectory, standardInput:"""
-      from Token import (SYNTAX_TOKEN_MAP,
-                         DeclKeyword, ExprKeyword, StmtKeyword, Keyword)
+    guard let keywords = _run(python, currentDirectory: _pythonModulesDirectory, standardInput: """
+      from gyb_syntax_support.Token import (SYNTAX_TOKEN_MAP,
+                                            DeclKeyword, ExprKeyword, StmtKeyword, Keyword)
       __classes = [DeclKeyword, ExprKeyword, StmtKeyword, Keyword]
       for token in SYNTAX_TOKEN_MAP.values():
         if type(token) in __classes:

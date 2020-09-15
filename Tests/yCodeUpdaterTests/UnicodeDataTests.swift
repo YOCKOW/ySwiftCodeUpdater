@@ -37,7 +37,7 @@ final class UnicodeDataTests: XCTestCase {
     XCTAssertEqual(data.rows[3].payload?.range, 0x00AA...0x00AA)
     
     
-    var temporaryFile = try TemporaryFile()
+    let temporaryFile = try TemporaryFile()
     try temporaryFile.write(string: string)
     try temporaryFile.seek(toOffset: 0)
     data = try UnicodeData(temporaryFile)
