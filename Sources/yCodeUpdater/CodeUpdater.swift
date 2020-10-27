@@ -128,7 +128,7 @@ public final class CodeUpdater {
       }
       let data = convertedData()
       
-      var temporaryFile = try TemporaryFile()
+      let temporaryFile = try TemporaryFile()
       defer { try? temporaryFile.close() }
       _do("Write the data to temporary file.") {
         try temporaryFile.write(contentsOf: _HEADER)

@@ -9,7 +9,7 @@ import Foundation
 import NetworkGear
 import TemporaryFile
 
-private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift/master/utils/gyb_syntax_support")!
+private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift/main/utils/gyb_syntax_support")!
 private let _python_files: [String] = [
   "AttributeNodes.py",
   "AvailabilityNodes.py",
