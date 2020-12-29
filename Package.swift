@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
   name: "ySwiftCodeUpdater",
   platforms: [
-    .macOS(.v10_15),
+    .macOS("10.15.4"), // Workaround for https://bugs.swift.org/browse/SR-13859
     .iOS(.v13),
     .watchOS(.v6),
     .tvOS(.v13),
