@@ -12,35 +12,13 @@ import Ranges
 import yExtensions
 import yProtocols
 
-private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.html")!
-private func _unicodeLicenseRawHTML() -> String {
-  return String(data: _fetch(_unicodeLicenseURL), encoding: .utf8)!
-}
-
+private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.txt")!
 private var _unicodeLicense: String! = nil
 
 /// Returns Unicode License.
 public func unicodeLicense() -> String {
   if _unicodeLicense == nil {
-    enum _Error: Error { case unexpectedLine }
-    _unicodeLicense = _do("Extract UNICODE LICENSE.") { () -> String in
-      var result = ""
-      var pre: Bool = false
-      for line in _unicodeLicenseRawHTML().split(whereSeparator: { $0.isNewline }).map({ $0.trimmingUnicodeScalars(in: .whitespaces) }) {
-        if let startRange = line.range(of: #"<a name="License">"#) {
-          guard let endRange = line.range(of: "</a>") else { throw _Error.unexpectedLine }
-          result.append(contentsOf: line[startRange.upperBound..<endRange.lowerBound])
-          result += "\n\n"
-        } else if line == "<pre>" {
-          pre = true
-        } else if line == "</pre>" {
-          pre = false
-        } else if pre {
-          result += "\(line)\n"
-        }
-      }
-      return result
-    }
+    _unicodeLicense = String(data: _fetch(_unicodeLicenseURL), encoding: .utf8)!
   }
   return _unicodeLicense
 }
