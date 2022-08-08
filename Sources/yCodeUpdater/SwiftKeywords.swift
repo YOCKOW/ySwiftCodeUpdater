@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  SwiftKeywords.swift
-   © 2019 YOCKOW.
+   © 2019, 2022 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -8,6 +8,7 @@
 import Foundation
 import NetworkGear
 import TemporaryFile
+import yExtensions
 
 private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift/main/utils/gyb_syntax_support")!
 private let _python_files: [String] = [
@@ -27,12 +28,13 @@ private let _python_files: [String] = [
   "Traits.py",
   "Trivia.py",
   "TypeNodes.py",
+  "Utils.py",
   "__init__.py",
   "kinds.py",
 ]
-private let _swiftPackageRoot = URL(fileURLWithPath: #file, isDirectory: false).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-private let _buildDirectory = _swiftPackageRoot.appendingPathComponent(".build", isDirectory: true)
-private let _pythonModulesDirectory = _buildDirectory.appendingPathComponent("python_modules", isDirectory: true)
+private let _tmpDir = URL.temporaryDirectory
+private let _codeUpdaterDir = _tmpDir.appendingPathComponent("ySwiftCodeUpdater")
+private let _pythonModulesDirectory = _codeUpdaterDir.appendingPathComponent("python_modules", isDirectory: true)
 private let _gybSyntaxSupportDirectory = _pythonModulesDirectory.appendingPathComponent("gyb_syntax_support", isDirectory: true)
 
 private func _downloadPythonFiles() {
