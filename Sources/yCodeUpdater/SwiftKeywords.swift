@@ -10,8 +10,9 @@ import NetworkGear
 import TemporaryFile
 import yExtensions
 
-private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift/main/utils/gyb_syntax_support")!
+private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift-syntax/main/gyb_syntax_support")!
 private let _python_files: [String] = [
+  "AttributeKinds.py",
   "AttributeNodes.py",
   "AvailabilityNodes.py",
   "Child.py",
