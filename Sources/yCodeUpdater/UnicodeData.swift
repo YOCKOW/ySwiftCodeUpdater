@@ -138,10 +138,7 @@ open class UnicodeData {
     guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
     self.init(string)
   }
-}
-
-
-extension UnicodeData {
+  
   /// Returns simple ranges of `Unicode.Scalar`.
   open var multipleRanges: MultipleRanges<Unicode.Scalar.Value> {
     return .init(self.rows.compactMap({ ($0.payload?.range).flatMap({ AnyRange($0) }) }))
