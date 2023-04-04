@@ -10,6 +10,7 @@ import XCTest
 
 import Foundation
 import TemporaryFile
+import yExtensions
 
 final class CodeUpdaterTests: XCTestCase {
   func test_update() throws {

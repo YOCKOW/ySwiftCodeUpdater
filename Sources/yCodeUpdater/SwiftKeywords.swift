@@ -10,28 +10,10 @@ import NetworkGear
 import TemporaryFile
 import yExtensions
 
-private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift-syntax/main/gyb_syntax_support")!
+private let _remote_gyb_syntax_support_directory = URL(string: "https://raw.githubusercontent.com/apple/swift/main/utils/gyb_syntax_support")!
 private let _python_files: [String] = [
   "AttributeKinds.py",
-  "AttributeNodes.py",
-  "AvailabilityNodes.py",
-  "Child.py",
-  "Classification.py",
-  "CommonNodes.py",
-  "DeclNodes.py",
-  "ExprNodes.py",
-  "GenericNodes.py",
-  "Node.py",
-  "NodeSerializationCodes.py",
-  "PatternNodes.py",
-  "StmtNodes.py",
   "Token.py",
-  "Traits.py",
-  "Trivia.py",
-  "TypeNodes.py",
-  "Utils.py",
-  "__init__.py",
-  "kinds.py",
 ]
 private let _tmpDir = URL.temporaryDirectory
 private let _codeUpdaterDir = _tmpDir.appendingPathComponent("ySwiftCodeUpdater")
