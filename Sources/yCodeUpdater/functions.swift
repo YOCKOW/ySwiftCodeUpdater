@@ -42,13 +42,19 @@ enum _FetchingError: Error {
   case noContent
 }
 
+private var _responseCache: [URL: URL.Response] = [:]
+
 internal func _fetch(_ url: URL) -> Data {
+  if let cachedResponse = _responseCache[url], let cachedContent = cachedResponse.content {
+    return cachedContent
+  }
   return _do("Fetch \"\(url.absoluteString)\".") {
     let response = try url.response(to: .init(method: .get, header: [], body: nil))
-    guard response.statusCode.rawValue / 100 == 2 else {
+    guard response.statusCode.isOK else {
       throw _FetchingError.unexpectedStatusCode(response.statusCode)
     }
     guard let content = response.content else { throw _FetchingError.noContent }
+    _responseCache[url] = response
     return content
   }
 }
@@ -65,7 +71,14 @@ private var __lastModified: Dictionary<URL, Date?> = [:]
 internal func _lastModified(of url: URL) -> Date? {
   if __lastModified[url] == Optional<Optional<Date>>.none {
     let lastModified: Date? = _do("Fetch Last-Modified Date of \(url.absoluteString).") {
-      return url.lastModified
+      if let cachedResponse = _responseCache[url] {
+        return cachedResponse.header[.lastModified].first?.source as? Date
+      }
+      // FIXME: Support concurrency in the future.
+      if url.isFileURL {
+        return try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+      }
+      return try url.response(to: .init(method: .head)).header[.lastModified].first?.source as? Date
     }
     __lastModified[url] = lastModified
   }
@@ -76,7 +89,11 @@ private var __eTags: Dictionary<URL, HTTPETag?> = [:]
 internal func _eTag(of url: URL) -> HTTPETag? {
   if __eTags[url] == Optional<Optional<HTTPETag>>.none {
     let eTag: HTTPETag? = _do("Fetch ETag of \(url.absoluteString).") {
-      return url.eTag
+      if let cachedResponse = _responseCache[url] {
+        return cachedResponse.header[.eTag].first?.source as? HTTPETag
+      }
+      // FIXME: Support concurrency in the future.
+      return try url.response(to: .init(method: .head)).header[.eTag].first?.source as? HTTPETag
     }
     __eTags[url] = eTag
   }
