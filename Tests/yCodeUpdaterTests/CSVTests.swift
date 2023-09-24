@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  CSVTests.swift
-   © 2019 YOCKOW.
+   © 2019,2023 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -11,8 +11,8 @@ import XCTest
 
 final class CSVTests: XCTestCase {
   func test_rows() throws {
-    func _url(for csvString: String) -> URL {
-      let encoded = csvString.addingPercentEncoding(withAllowedUnicodeScalars: .urlPathAllowed)!
+    func _url(for csvString: String) throws -> URL {
+      let encoded = try XCTUnwrap(csvString.addingPercentEncoding(whereAllowedUnicodeScalars: { $0.isAllowedInURLPath }))
       return URL(string: "https://Bot.YOCKOW.jp/-/stringContent/\(encoded)")!
     }
     

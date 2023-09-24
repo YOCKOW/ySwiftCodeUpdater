@@ -1,11 +1,10 @@
 /* *************************************************************************************************
  TargetFileInfo.swift
-   © 2019 YOCKOW.
+   © 2019,2023 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
  
-import BonaFideCharacterSet
 import Foundation
 import NetworkGear
 import yExtensions
@@ -83,7 +82,7 @@ internal struct _TargetFileInfo {
       lineData = data
 
       lineNumber += 1
-      guard var line = String(data: lineData, encoding: .utf8)?.trimmingUnicodeScalars(in: .whitespacesAndNewlines) else {
+      guard var line = String(data: lineData, encoding: .utf8)?.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace || $0.latestProperties.isNewline }) else {
         throw _FormatError.unexpectedLine(line: lineNumber)
       }
       if line.isEmpty { break }
@@ -92,11 +91,11 @@ internal struct _TargetFileInfo {
       guard line.hasPrefix("//") else {
         throw _FormatError.notCommentLine(line: lineNumber)
       }
-      line = line[line.index(line.startIndex, offsetBy: 2)..<line.endIndex].trimmingUnicodeScalars(in: .whitespaces)
+      line = line[line.index(line.startIndex, offsetBy: 2)..<line.endIndex].trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace })
       if line.isEmpty || line.hasPrefix("#") { continue }
 
       // `line` is "// KEY: VALUE"
-      let keyValue = line.split(separator: ":", maxSplits: 1).map{ $0.trimmingUnicodeScalars(in: .whitespaces) }
+      let keyValue = line.split(separator: ":", maxSplits: 1).map{ $0.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace }) }
       guard keyValue.count == 2 else {
         throw _FormatError.notKeyValuePair(line: lineNumber)
       }
