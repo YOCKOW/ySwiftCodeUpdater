@@ -1,11 +1,10 @@
 /* *************************************************************************************************
  functions.swift
-   © 2019-2020 YOCKOW.
+   © 2019-2020,2023 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
  
-import BonaFideCharacterSet
 import Foundation
 import NetworkGear
 import TemporaryFile
@@ -144,7 +143,7 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
 internal func _search(command: String) -> URL? {
   return _do("Search `\(command)`.") {
     let sh = URL(fileURLWithPath: "/bin/sh")
-    guard let result = _run(sh, arguments: ["-c", "which \(command)"])?.trimmingUnicodeScalars(in: .whitespacesAndNewlines) else {
+    guard let result = _run(sh, arguments: ["-c", "which \(command)"])?.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace || $0.latestProperties.isNewline }) else {
       return nil
     }
     if result.isEmpty || !result.hasPrefix("/") { return nil }

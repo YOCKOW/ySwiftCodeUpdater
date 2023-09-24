@@ -1,11 +1,10 @@
 /* *************************************************************************************************
  UnicodeData.swift
-   © 2019-2020 YOCKOW.
+   © 2019-2020,2023 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
  
-import BonaFideCharacterSet
 import Foundation
 import NetworkGear
 import Ranges
@@ -72,7 +71,7 @@ open class UnicodeData {
     public private(set) var comment: String?
     
     public init?<S>(_ line: S) where S: StringProtocol {
-      if line.isEmpty || line.consists(of: .whitespacesAndNewlines) { return nil }
+      if line.isEmpty || line.allSatisfy({ $0.isWhitespace || $0.isNewline }) { return nil }
       
       self.payload = nil
       self.comment = nil
@@ -80,13 +79,13 @@ open class UnicodeData {
       let (payloadString, comment) = line.splitOnce(separator: "#")
       if !payloadString.isEmpty {
         let columns = payloadString.split(separator: ";", omittingEmptySubsequences: false).map {
-          $0.trimmingUnicodeScalars(in: .whitespacesAndNewlines)
+          $0.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace || $0.latestProperties.isNewline })
         }
         guard columns.count > 1 else { return nil }
         self.payload = (range: .init(columns[0]), columns: .init(columns.dropFirst()))
       }
       if let comment = comment {
-        self.comment = comment.trimmingUnicodeScalars(in: .whitespacesAndNewlines)
+        self.comment = comment.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace || $0.latestProperties.isNewline })
       }
       
       if self.payload == nil && self.comment == nil { return nil }
