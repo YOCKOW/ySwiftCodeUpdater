@@ -20,27 +20,30 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
-          - macOS-latest
+          - ubuntu-22.04
+          - macOS-13
+        swift-version:
+          - '5.9'
         swift-compat-ver:
           - '5'
           # - '4.2'
           # - '4'
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Use a cache for ".build" directory.
       uses: actions/cache@v3
       with:
         path: .build
-        key: build-${{ github.workspace }}-${{ runner.os }}-${{ matrix.swift-compat-ver }}-${{ hashFiles('**/*.swift') }}
+        key: build-${{ github.workspace }}-${{ runner.os }}-${{ matrix.swift-version }}-${{ matrix.swift-compat-ver }}-${{ hashFiles('**/*.swift') }}
         restore-keys: |
-          build-${{ github.workspace }}-${{ runner.os }}-${{ matrix.swift-compat-ver }}-
+          build-${{ github.workspace }}-${{ runner.os }}-${{ matrix.swift-version }}-${{ matrix.swift-compat-ver }}-
+          build-${{ github.workspace }}-${{ runner.os }}-${{ matrix.swift-version }}-
           build-${{ github.workspace }}-${{ runner.os }}-
           build-${{ github.workspace }}-
     - uses: YOCKOW/Action-setup-swift@main
       with:
-        swift-version: '5.7'
+        swift-version: ${{ matrix.swift-version }}
     # DEBUG mode
     - name: Test with debug mode.
       id: debug_test

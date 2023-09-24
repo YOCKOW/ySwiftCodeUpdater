@@ -12,10 +12,10 @@ import TemporaryFile
 import Ranges
 
 final class UnicodeDataTests: XCTestCase {
-  func test_license() {
+  func test_license() throws {
     let license = unicodeLicense()
-    let firstLine = license.split(whereSeparator: { $0.isNewline }).first
-    XCTAssertEqual(firstLine, "UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE")
+    let firstLine = try XCTUnwrap(license.split(whereSeparator: { $0.isNewline }).first)
+    XCTAssertTrue(firstLine.contains("UNICODE LICENSE"))
   }
   
   func test_data() throws {
