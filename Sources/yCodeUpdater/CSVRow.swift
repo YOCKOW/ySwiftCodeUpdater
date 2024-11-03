@@ -1,20 +1,21 @@
 /* *************************************************************************************************
  CSVRow.swift
-   © 2019 YOCKOW.
+   © 2019,2024 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
  
 import CSV
 
-fileprivate final class _NameTable {
-  private var _table: [String: Int]
-  
+fileprivate final class _NameTable: Sendable {
+  private let _table: [String: Int]
+
   fileprivate init(names: [String]) {
-    self._table = [:]
+    var table: [String: Int] = [:]
     for ii in 0..<names.count {
-      self._table[names[ii]] = ii
+      table[names[ii]] = ii
     }
+    self._table = table
   }
   
   fileprivate subscript(_ name: String) -> Int? {
@@ -23,7 +24,7 @@ fileprivate final class _NameTable {
 }
 
 /// Represents a row of CSV.
-public struct CSVRow {
+public struct CSVRow: Sendable {
   private var _fields: [String]
   private var _nameTable: _NameTable?
   

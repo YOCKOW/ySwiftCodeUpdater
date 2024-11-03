@@ -1,10 +1,11 @@
 /* *************************************************************************************************
  SwiftKeywords.swift
-   © 2019,2022,2023 YOCKOW.
+   © 2019,2022-2024 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
- 
+
+import Dispatch
 import Foundation
 import NetworkGear
 import StringComposition
@@ -16,18 +17,29 @@ private enum _SwiftKeywordsError: Error {
   case unexpectedRemoteContent
 }
 
-private let _tokenKindsDefRemoteURL = URL(string: "https://raw.githubusercontent.com/apple/swift/main/include/swift/AST/TokenKinds.def")!
+private let _tokenKindsDefRemoteURL = URL(string: "https://raw.githubusercontent.com/swiftlang/swift/main/include/swift/AST/TokenKinds.def")!
 
 private func _tokenKindsDefContent() -> String {
-  struct __Cache { static var cache: String? = nil }
-  guard let cache = __Cache.cache else {
-    guard let string = String(data: _fetch(_tokenKindsDefRemoteURL), encoding: .utf8) else {
-      fatalError("Unexpected content at \(_tokenKindsDefRemoteURL.absoluteString).")
+  struct __Cache {
+    private static let _queue: DispatchQueue = .init(
+      label: "jp.YOCKOW.ySwiftCodeUpdater.SwiftKeywords.__Cache",
+      attributes: .concurrent
+    )
+    nonisolated(unsafe) private static var _cache: String? = nil
+    static var cache: String {
+      return _queue.sync(flags: .barrier) {
+        guard let cache = _cache else {
+          guard let string = String(data: _fetch(_tokenKindsDefRemoteURL), encoding: .utf8) else {
+            fatalError("Unexpected content at \(_tokenKindsDefRemoteURL.absoluteString).")
+          }
+          _cache = string
+          return string
+        }
+        return cache
+      }
     }
-    __Cache.cache = string
-    return string
   }
-  return cache
+  return __Cache.cache
 }
 
 private let _swiftKeywords: Set<String> = ({ () -> Set<String> in

@@ -5,7 +5,7 @@ This package is just a helper for some of YOCKOW's other packages.
 
 # Requirements
 
-- Swift 5.1
+- Swift 5, 6
 - macOS(>=10.15) or Linux
 
 

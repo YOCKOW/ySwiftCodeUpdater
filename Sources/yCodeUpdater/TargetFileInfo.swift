@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  TargetFileInfo.swift
-   © 2019,2023 YOCKOW.
+   © 2019,2023-2024 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -10,7 +10,7 @@ import NetworkGear
 import yExtensions
 
 
-internal enum _FormatError: LocalizedError {
+internal enum _FormatError: LocalizedError, Sendable {
   case unexpectedLine(line: UInt)
   case notCommentLine(line: UInt)
   case notKeyValuePair(line: UInt)
@@ -45,8 +45,8 @@ internal enum _FormatError: LocalizedError {
   }
 }
  
-internal struct _TargetFileInfo {
-  private struct Info {
+internal struct _TargetFileInfo: Sendable {
+  private struct Info: Sendable {
     var lastModified: Date? = nil
     var eTag: HTTPETag? = nil
   }

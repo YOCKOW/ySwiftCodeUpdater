@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  CodeUpdaterManager.swift
-   © 2019 YOCKOW.
+   © 2019,2024 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -30,8 +30,8 @@ open class CodeUpdaterManager {
     self.add(CodeUpdater(delegate: delegate))
   }
   
-  private enum _Arguments: Equatable {
-    enum _Identifiers: Equatable {
+  private enum _Arguments: Equatable, Sendable {
+    enum _Identifiers: Equatable, Sendable {
       case all
       case identifiers(Set<String>)
       
