@@ -1,10 +1,11 @@
 /* *************************************************************************************************
  UnicodeData.swift
-   © 2019-2020,2023 YOCKOW.
+   © 2019-2020,2023-2024 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
- 
+
+import Dispatch
 import Foundation
 import NetworkGear
 import Ranges
@@ -12,14 +13,27 @@ import yExtensions
 import yProtocols
 
 private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.txt")!
-private var _unicodeLicense: String! = nil
 
 /// Returns Unicode License.
 public func unicodeLicense() -> String {
-  if _unicodeLicense == nil {
-    _unicodeLicense = String(data: _fetch(_unicodeLicenseURL), encoding: .utf8)!
+  struct __Cache {
+    static nonisolated(unsafe) private var _unicodeLicense: String? = nil
+    static private let _unicodeLicenseQueue: DispatchQueue = .init(
+      label: "jp.YOCKOW.ySwiftCodeUpdater.UnicodeLicense",
+      attributes: .concurrent
+    )
+    static var cache: String {
+      return _unicodeLicenseQueue.sync(flags: .barrier) {
+        guard let license = _unicodeLicense else {
+          let license = String(data: _fetch(_unicodeLicenseURL), encoding: .utf8)!
+          _unicodeLicense = license
+          return license
+        }
+        return license
+      }
+    }
   }
-  return _unicodeLicense
+  return __Cache.cache
 }
 
 extension Unicode.Scalar {
@@ -48,7 +62,7 @@ extension ClosedRange where Bound == Unicode.Scalar.Value {
 }
 
 open class UnicodeData {
-  public enum Error: LocalizedError {
+  public enum Error: LocalizedError, Sendable {
     case noData
     case nonUTF8
     case outOfRange
@@ -65,7 +79,7 @@ open class UnicodeData {
     }
   }
   
-  public struct Row {
+  public struct Row: Sendable {
     public typealias Payload = (range: ClosedRange<Unicode.Scalar.Value>, columns: [String])
     public private(set) var payload: Payload?
     public private(set) var comment: String?
