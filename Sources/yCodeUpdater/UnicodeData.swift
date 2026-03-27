@@ -151,26 +151,32 @@ open class UnicodeData {
     guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
     self.init(string)
   }
-  
+
   /// Returns simple ranges of `Unicode.Scalar`.
+  open var rangeSet: GeneralizedRangeSet<Unicode.Scalar.Value> {
+    return .init(self.rows.compactMap({ ($0.payload?.range).flatMap({ $0 }) }))
+  }
+
+  /// Returns simple ranges of `Unicode.Scalar`.
+  @available(*, deprecated, renamed: "rangeSet")
   open var multipleRanges: MultipleRanges<Unicode.Scalar.Value> {
-    return .init(self.rows.compactMap({ ($0.payload?.range).flatMap({ AnyRange($0) }) }))
+    return self.rangeSet
   }
   
   /// Returns a range-dictionary converting columns.
   ///
   /// `T` must conform to `Equatable` for practical uses.
   open func rangeDictionary<T>(converter: ([String]) throws -> T) rethrows -> RangeDictionary<Unicode.Scalar.Value, T> where T: Equatable {
-    func _converted(row: Row) throws -> (AnyRange<Unicode.Scalar.Value>, T)? {
+    func _converted(row: Row) throws -> (any GeneralizedRange<Unicode.Scalar.Value>, T)? {
       guard let payload = row.payload else { return nil }
-      return (AnyRange(payload.range), try converter(payload.columns))
+      return (payload.range, try converter(payload.columns))
     }
     return .init(try self.rows.compactMap({ try _converted(row: $0) }))
   }
   
   /// Returns a dictionary whose key is a string at `keyColumn` and whose value is its ranges.
-  open func split(keyColumn: Int = 0) throws -> [String: MultipleRanges<Unicode.Scalar.Value>] {
-    var result: [String: MultipleRanges<Unicode.Scalar.Value>] = [:]
+  open func split(keyColumn: Int = 0) throws -> [String: GeneralizedRangeSet<Unicode.Scalar.Value>] {
+    var result: [String: GeneralizedRangeSet<Unicode.Scalar.Value>] = [:]
     for row in self.rows {
       guard let payload = row.payload else { continue }
       if payload.columns.count <= keyColumn { throw Error.outOfRange }
