@@ -20,7 +20,7 @@ flowchart TD
   csv.swift(["CSV.swift<br>@2.5.2"])
   swiftbootstring(["Bootstring<br>@1.2.0"])
   swiftnetworkgear(["NetworkGear<br>@0.20.0"])
-  swiftpublicsuffix(["PublicSuffix<br>@2.4.13"])
+  swiftpublicsuffix(["PublicSuffix<br>@2.4.14"])
   swiftranges(["Ranges<br>@4.0.1"])
   swiftstringcomposition(["StringComposition<br>@3.0.0"])
   swifttemporaryfile(["TemporaryFile<br>@5.0.0"])
