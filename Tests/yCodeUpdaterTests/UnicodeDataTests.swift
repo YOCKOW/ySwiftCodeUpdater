@@ -12,8 +12,8 @@ import Ranges
 import Testing
 
 @Suite final class UnicodeDataTests {
-  @Test func test_license() throws {
-    let license = unicodeLicense()
+  @Test func test_license() async throws {
+    let license = try await unicodeLicense()
     let firstLine = try #require(license.split(whereSeparator: { $0.isNewline }).first)
     #expect(firstLine.contains("UNICODE LICENSE"))
   }
@@ -49,12 +49,12 @@ import Testing
     #expect(data.rows[3].payload?.range == 0x00AA...0x00AA)
   }
 
-  @Test func test_url() {
+  @Test func test_url() async {
     let url = URL(string: "https://unicode.org/Public/UNIDATA/NormalizationCorrections.txt")!
-    #expect(throws: Never.self) { try UnicodeData(url: url) }
+    await #expect(throws: Never.self) { try await UnicodeData(url: url) }
   }
 
-  @Test func test_multipleRanges() {
+  @Test func test_rangeSet() {
     let string = """
     0000..001F;
     0020..002F;

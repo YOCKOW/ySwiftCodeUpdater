@@ -9,14 +9,14 @@
 import Testing
 
 @Suite final class SwiftKeywordsTests {
-  @Test func test_keywords() {
-    #expect("if".isSwiftKeyword)
-    #expect("as".isSwiftKeyword)
-    #expect(!"hogefugapiyo".isSwiftKeyword)
+  @Test func test_keywords() async throws {
+    #expect(try await "if".isSwiftKeyword)
+    #expect(try await "as".isSwiftKeyword)
+    #expect(try await !"hogefugapiyo".isSwiftKeyword)
   }
 
-  @Test func test_identifier() {
-    #expect("class".swiftIdentifier == "`class`")
-    #expect("my_favourite_things".swiftIdentifier == "my_favourite_things")
+  @Test func test_identifier() async throws {
+    #expect(try await "class".swiftIdentifier == "`class`")
+    #expect(try await "my_favourite_things".swiftIdentifier == "my_favourite_things")
   }
 }

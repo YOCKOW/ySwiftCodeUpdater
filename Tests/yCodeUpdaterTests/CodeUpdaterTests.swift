@@ -13,8 +13,8 @@ import yExtensions
 import Testing
 
 @Suite final class CodeUpdaterTests {
-  @Test func test_update() throws {
-    class Delegate: CodeUpdaterDelegate {
+  @Test func test_update() async throws {
+    final class Delegate: CodeUpdaterDelegate {
       typealias IntermediateDataType = Data
       var identifier: String { return "test" }
       var sourceURLs: Array<URL> {
@@ -37,7 +37,7 @@ import Testing
     let delegate = Delegate()
     let updater = CodeUpdater(delegate: delegate)
     updater.forcesToUpdate = true
-    updater.update()
+    try await updater.update()
 
     let expectedFilePath = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources/Expected.swift")
     let actual = FileManager.default.contents(atPath: delegate.destinationURL.path).flatMap({ String(data: $0, encoding: .utf8) })
