@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  UnicodeData.swift
-   © 2019-2020,2023-2024 YOCKOW.
+   © 2019-2020,2023-2024,2026 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -14,26 +14,29 @@ import yProtocols
 
 private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.txt")!
 
-/// Returns Unicode License.
-public func unicodeLicense() -> String {
-  struct __Cache {
-    static nonisolated(unsafe) private var _unicodeLicense: String? = nil
-    static private let _unicodeLicenseQueue: DispatchQueue = .init(
-      label: "jp.YOCKOW.ySwiftCodeUpdater.UnicodeLicense",
-      attributes: .concurrent
-    )
-    static var cache: String {
-      return _unicodeLicenseQueue.sync(flags: .barrier) {
-        guard let license = _unicodeLicense else {
-          let license = String(data: _fetch(_unicodeLicenseURL), encoding: .utf8)!
-          _unicodeLicense = license
-          return license
-        }
+private actor _UnicodeLicense {
+  static let shared: _UnicodeLicense = .init()
+
+  private var _unicodeLicense: String? = nil
+  var unicodeLicense: String {
+    get async throws {
+      if let license = _unicodeLicense {
         return license
       }
+
+      let license = String(
+        data: try await _fetch(_unicodeLicenseURL, jobID: "Unicode License"),
+        encoding: .utf8
+      )!
+      _unicodeLicense = license
+      return license
     }
   }
-  return __Cache.cache
+}
+
+/// Returns Unicode License.
+public func unicodeLicense() async throws -> String {
+  return try await _UnicodeLicense.shared.unicodeLicense
 }
 
 extension Unicode.Scalar {
@@ -145,32 +148,37 @@ open class UnicodeData {
     try self.init(AnyFileHandle(fileHandle))
   }
   
-  public convenience required init(url: URL) throws {
-    let response = try url.response(to: URL.Request())
-    guard let data = response.content else {throw Error.noData }
+  public convenience required init(url: URL) async throws {
+    let data = try await _fetch(url, jobID: "Remote Unicode Data")
     guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
     self.init(string)
   }
-  
+
   /// Returns simple ranges of `Unicode.Scalar`.
+  open var rangeSet: GeneralizedRangeSet<Unicode.Scalar.Value> {
+    return .init(self.rows.compactMap({ ($0.payload?.range).flatMap({ $0 }) }))
+  }
+
+  /// Returns simple ranges of `Unicode.Scalar`.
+  @available(*, deprecated, renamed: "rangeSet")
   open var multipleRanges: MultipleRanges<Unicode.Scalar.Value> {
-    return .init(self.rows.compactMap({ ($0.payload?.range).flatMap({ AnyRange($0) }) }))
+    return self.rangeSet
   }
   
   /// Returns a range-dictionary converting columns.
   ///
   /// `T` must conform to `Equatable` for practical uses.
   open func rangeDictionary<T>(converter: ([String]) throws -> T) rethrows -> RangeDictionary<Unicode.Scalar.Value, T> where T: Equatable {
-    func _converted(row: Row) throws -> (AnyRange<Unicode.Scalar.Value>, T)? {
+    func _converted(row: Row) throws -> (any GeneralizedRange<Unicode.Scalar.Value>, T)? {
       guard let payload = row.payload else { return nil }
-      return (AnyRange(payload.range), try converter(payload.columns))
+      return (payload.range, try converter(payload.columns))
     }
     return .init(try self.rows.compactMap({ try _converted(row: $0) }))
   }
   
   /// Returns a dictionary whose key is a string at `keyColumn` and whose value is its ranges.
-  open func split(keyColumn: Int = 0) throws -> [String: MultipleRanges<Unicode.Scalar.Value>] {
-    var result: [String: MultipleRanges<Unicode.Scalar.Value>] = [:]
+  open func split(keyColumn: Int = 0) throws -> [String: GeneralizedRangeSet<Unicode.Scalar.Value>] {
+    var result: [String: GeneralizedRangeSet<Unicode.Scalar.Value>] = [:]
     for row in self.rows {
       guard let payload = row.payload else { continue }
       if payload.columns.count <= keyColumn { throw Error.outOfRange }

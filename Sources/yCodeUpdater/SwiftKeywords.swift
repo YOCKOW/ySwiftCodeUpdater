@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  SwiftKeywords.swift
-   © 2019,2022-2024 YOCKOW.
+   © 2019,2022-2024,2026 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -19,61 +19,70 @@ private enum _SwiftKeywordsError: Error {
 
 private let _tokenKindsDefRemoteURL = URL(string: "https://raw.githubusercontent.com/swiftlang/swift/main/include/swift/AST/TokenKinds.def")!
 
-private func _tokenKindsDefContent() -> String {
-  struct __Cache {
-    private static let _queue: DispatchQueue = .init(
-      label: "jp.YOCKOW.ySwiftCodeUpdater.SwiftKeywords.__Cache",
-      attributes: .concurrent
-    )
-    nonisolated(unsafe) private static var _cache: String? = nil
-    static var cache: String {
-      return _queue.sync(flags: .barrier) {
-        guard let cache = _cache else {
-          guard let string = String(data: _fetch(_tokenKindsDefRemoteURL), encoding: .utf8) else {
-            fatalError("Unexpected content at \(_tokenKindsDefRemoteURL.absoluteString).")
-          }
-          _cache = string
-          return string
-        }
-        return cache
-      }
-    }
-  }
-  return __Cache.cache
-}
+private actor _Cache {
+  static let shared: _Cache = .init()
 
-private let _swiftKeywords: Set<String> = ({ () -> Set<String> in
-  var result = Set<String>()
-  let tokenKindsDef = _tokenKindsDefContent()
-  for line in StringLines(tokenKindsDef) {
-    let payload = line.payload
-    guard (
-      payload.hasPrefix("DECL_KEYWORD") ||
-      payload.hasPrefix("STMT_KEYWORD") ||
-      payload.hasPrefix("EXPR_KEYWORD")
-    ) else {
-      continue
+  var _tokenKindsDefContent: String? = nil
+  var tokenKindsDefContent: String {
+    get async throws {
+      if let content = self._tokenKindsDefContent {
+        return content
+      }
+
+      guard let string = String(
+        data: try await _fetch(_tokenKindsDefRemoteURL, jobID: "SwiftKeywords"),
+        encoding: .utf8
+      ) else {
+        throw _SwiftKeywordsError.unexpectedRemoteContent
+      }
+      _tokenKindsDefContent = string
+      return string
     }
-    guard let lParenIndex = payload.firstIndex(of: "("),
-          let rParenIndex = payload.firstIndex(of: ")"),
-          lParenIndex < rParenIndex
-    else {
-      continue
-    }
-    result.insert(String(payload[payload.index(after: lParenIndex)..<rParenIndex]))
   }
-  return result
-})()
+
+  var _swiftKeywords: Set<String>?
+  var swiftKeywords: Set<String> {
+    get async throws {
+      if let keywords = self._swiftKeywords {
+        return keywords
+      }
+
+      var result = Set<String>()
+      for line in StringLines(try await tokenKindsDefContent) {
+        let payload = line.payload
+        guard (
+          payload.hasPrefix("DECL_KEYWORD") ||
+          payload.hasPrefix("STMT_KEYWORD") ||
+          payload.hasPrefix("EXPR_KEYWORD")
+        ) else {
+          continue
+        }
+        guard let lParenIndex = payload.firstIndex(of: "("),
+              let rParenIndex = payload.firstIndex(of: ")"),
+              lParenIndex < rParenIndex
+        else {
+          continue
+        }
+        result.insert(String(payload[payload.index(after: lParenIndex)..<rParenIndex]))
+      }
+      return result
+    }
+  }
+}
 
 extension String {
   public var isSwiftKeyword: Bool {
-    return _swiftKeywords.contains(self)
+    get async throws {
+      return try await _Cache.shared.swiftKeywords.contains(self)
+    }
   }
   
   public var swiftIdentifier: String {
-    if self.isSwiftKeyword {
-      return "`\(self)`"
+    get async throws {
+      if try await self.isSwiftKeyword {
+        return "`\(self)`"
+      }
+      return self
     }
-    return self
   }
 }

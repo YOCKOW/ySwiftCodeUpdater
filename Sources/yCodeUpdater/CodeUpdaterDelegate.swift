@@ -1,18 +1,18 @@
 /* *************************************************************************************************
  CodeUpdaterDelegate.swift
-   © 2019 YOCKOW.
+   © 2019,2026 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
  
-import CSV
+@preconcurrency import CSV
 import Foundation
 import StringComposition
 
 /// Intermediate Data
 ///
 /// [Source] -`CodeUpdaterDelegate.prepare`-> [Intermediate Data] -`CodeUpdaterDelegate.convert`-> [Final Code]
-public struct IntermediateDataContainer<T> {
+public struct IntermediateDataContainer<T>: Sendable where T: Sendable {
   /// The intermediate data itself.
   public var content: T
   
@@ -21,22 +21,22 @@ public struct IntermediateDataContainer<T> {
   public internal(set) var sourceURL: URL! = nil
   
   /// User Info.
-  public var userInfo: Dictionary<String, Any>?
-  
-  public init(content: T, userInfo: Dictionary<String, Any>? = nil) {
+  public var userInfo: Dictionary<String, any Sendable>?
+
+  public init(content: T, userInfo: Dictionary<String, any Sendable>? = nil) {
     self.content = content
     self.userInfo = userInfo
   }
 }
 
-public protocol CodeUpdaterDelegate {
-  associatedtype IntermediateDataType
-  
+public protocol CodeUpdaterDelegate: Sendable {
+  associatedtype IntermediateDataType: Sendable
+
   var identifier: String { get }
   var sourceURLs: Array<URL> { get }
   var destinationURL: URL { get }
   
-  func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType>
+  func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<IntermediateDataType>
   func convert<S>(_: S) throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
@@ -57,14 +57,14 @@ extension CodeUpdaterDelegate {
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == Data {
-  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<Data> {
-    return .init(content: _fetch(sourceURL))
+  public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<Data> {
+    return .init(content: try await _fetch(sourceURL, jobID: self.identifier))
   }
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == String {
-  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<String> {
-    guard let string = String(data: _fetch(sourceURL), encoding: .utf8) else {
+  public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<String> {
+    guard let string = String(data: try await _fetch(sourceURL, jobID: self.identifier), encoding: .utf8) else {
       throw CodeUpdaterError.cannotConvertToString
     }
     return .init(content: string)
@@ -72,8 +72,8 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == String {
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == StringLines {
-  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<StringLines> {
-    guard let string = String(data: _fetch(sourceURL), encoding: .utf8) else {
+  public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<StringLines> {
+    guard let string = String(data: try await _fetch(sourceURL, jobID: self.identifier), encoding: .utf8) else {
       throw CodeUpdaterError.cannotConvertToString
     }
     return .init(content: StringLines(string, detectIndent: true))
@@ -81,15 +81,15 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == StringLines {
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == CSVReader {
-  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<CSVReader> {
-    let reader = try CSVReader(url: sourceURL)
+  public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<CSVReader> {
+    let reader = try await CSVReader(url: sourceURL)
     return .init(content: reader)
   }
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType: UnicodeData {
-  public func prepare(sourceURL: URL) throws -> IntermediateDataContainer<IntermediateDataType> {
-    return .init(content: try IntermediateDataType(url: sourceURL))
+  public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<IntermediateDataType> {
+    return .init(content: try await IntermediateDataType(url: sourceURL))
   }
 }
 

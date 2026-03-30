@@ -212,7 +212,7 @@ open class CodeUpdaterManager {
   
   internal var _shouldShowUpdaters: Bool { return self._arguments == .showUpdaters }
   
-  open func run() {
+  open func run() async {
     if self._shouldViewHelp {
       self.viewHelp()
       return
@@ -222,17 +222,21 @@ open class CodeUpdaterManager {
       self.showUpdaters()
       return
     }
-    
-    for updater in self.updaters {
-      if self._skips(fileOf: updater.identifier) {
-        _viewInfo("Skip `\(updater.identifier)`.")
-        continue
+
+    await withThrowingTaskGroup(of: Void.self, returning: Void.self) { group in
+      for updater in self.updaters {
+        if self._skips(fileOf: updater.identifier) {
+          await _viewInfo("Skip `\(updater.identifier)`.", jobID: "main")
+          continue
+        }
+
+        if self._forcesToUpdate(fileOf: updater.identifier) {
+          updater.forcesToUpdate = true
+        }
+        group.addTask {
+          try await updater.update()
+        }
       }
-      
-      if self._forcesToUpdate(fileOf: updater.identifier) {
-        updater.forcesToUpdate = true
-      }
-      updater.update()
     }
   }
 }

@@ -1,6 +1,6 @@
 /* *************************************************************************************************
 CSV+URL.swift
-  © 2019 YOCKOW.
+  © 2019,2026 YOCKOW.
     Licensed under MIT License.
     See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -17,8 +17,8 @@ extension CSVReader {
     trimFields: Bool = defaultTrimFields,
     delimiter: UnicodeScalar = defaultDelimiter,
     whitespaces: CharacterSet = defaultWhitespaces
-  ) throws {
-    guard let content = url.content else { throw CSVError.cannotOpenFile }
+  ) async throws {
+    let content = try await _fetch(url, jobID: "Remote CSV")
     guard let string = String(data: content, encoding: encoding) else { throw CSVError.cannotReadFile }
     try self.init(
       string: string,

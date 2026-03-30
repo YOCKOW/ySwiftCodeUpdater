@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  functions.swift
-   © 2019-2020,2023-2024 YOCKOW.
+   © 2019-2020,2023-2024,2026 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -11,131 +11,174 @@ import NetworkGear
 import TemporaryFile
 import yExtensions
 
-/// A class to avoid `async`-hell.
-private final class _VariableStore {
-  final class Variable<T>: @unchecked Sendable where T: Sendable {
-    private var _value: T
-    private let _queue: DispatchQueue = .init(
-      label: "jp.YOCKOW.ySwiftCodeUpdater._VariableStore.Variable<\(T.self)>",
-      attributes: .concurrent
-    )
-    init(_ value: T) {
-      self._value = value
-    }
-    func withValue<U>(_ body: (inout T) throws -> U) rethrows -> U {
-      return try _queue.sync(flags: .barrier) { try body(&_value) }
-    }
-  }
-
-  static let indentLevel: Variable<Int> = .init(0)
-
-  static let responseCache: Variable<[URL: URL.Response]> = .init([:])
-
-  static let lastModifiedCache: Variable<[URL: Date?]> = .init([:])
-
-  static let eTagCache: Variable<[URL: HTTPETag?]> = .init([:])
-}
-
-private func _indent() -> String {
-  return String(repeating: " ", count: _VariableStore.indentLevel.withValue({ $0 * 4 }))
-}
-
-internal func _viewInfo(_ message: String) {
-  print("\(_indent())ℹ️ \(message)")
-}
-
-public func view(message: String) {
-  _viewInfo(message)
-}
-
-internal func _do<T>(_ message: String, closure: () throws -> T) -> T {
-  print("\(_indent())⏳ \(message)")
-  do {
-    _VariableStore.indentLevel.withValue { $0 += 1 }
-    let result = try closure()
-    _VariableStore.indentLevel.withValue { $0 -= 1 }
-    print("\(_indent())✅ Succeeded.")
-    return result
-  } catch {
-    var stderr = FileHandle.standardError
-    print("\(_indent())❌ Failed due to an error: \(error)", to: &stderr)
-    fatalError(error.localizedDescription)
-  }
-}
-
-enum _FetchingError: Error {
+enum _HTTPResponseError: Error {
   case unexpectedStatusCode(HTTPStatusCode)
   case noContent
 }
 
-internal func _fetch(_ url: URL) -> Data {
-  return _VariableStore.responseCache.withValue { responseCache in
-    if let cachedResponse = responseCache[url], let cachedContent = cachedResponse.content {
-      return cachedContent
+private actor _Cache {
+  static let shared: _Cache = .init()
+
+  private var _responses: [URL: [HTTPMethod: SimpleHTTPConnection.Response<Data>]] = [:]
+  private var _lastModifiedDates: [URL: Date?] = [:]
+  private var _eTags: [URL: HTTPETag?] = [:]
+
+  private var _indentLevels: [String: Int] = [:]
+  private var _taskCounters: [String: Int] = [:]
+
+  func response(
+    forURL url: URL,
+    method: HTTPMethod
+  ) async throws -> SimpleHTTPConnection.Response<Data> {
+    if let cachedResponse = _responses[url]?[method] {
+      return cachedResponse
     }
-    return _do("Fetch \"\(url.absoluteString)\".") {
-      let response = try url.response(to: .init(method: .get, header: [], body: nil))
-      guard response.statusCode.isOK else {
-        throw _FetchingError.unexpectedStatusCode(response.statusCode)
-      }
-      guard let content = response.content else { throw _FetchingError.noContent }
-      responseCache[url] = response
-      return content
+
+    let request = SimpleHTTPConnection.Request(
+      url: url,
+      method: method,
+      redirectStrategy: .followRedirects
+    )
+    let newResponse = try await SimpleHTTPConnection(request: request).response()
+    guard newResponse.statusCode.isOK else {
+      throw _HTTPResponseError.unexpectedStatusCode(newResponse.statusCode)
     }
+    _responses[url, default: [:]][method] = newResponse
+    return newResponse
+  }
+
+  func content(ofURL url: URL) async throws -> Data {
+    let response = try await self.response(forURL: url, method: .get)
+    guard response.statusCode.isOK else {
+      throw _HTTPResponseError.unexpectedStatusCode(response.statusCode)
+    }
+    guard let content = response.content else {
+      throw _HTTPResponseError.noContent
+    }
+    return content
+  }
+
+  func lastModifiedDate(forURL url: URL) async throws -> Date? {
+    if let cachedDate = _lastModifiedDates[url] {
+      return cachedDate
+    }
+
+    func __cacheLastModifiedDateFromResponse<T>(_ response: SimpleHTTPConnection.Response<T>) -> Date? {
+      let theDate = response.header[.lastModified].first?.source as? Date
+      _lastModifiedDates[url] = theDate
+      return theDate
+    }
+
+    if let cachedResponse = _responses[url]?[.head] ?? _responses[url]?[.get] {
+      return __cacheLastModifiedDateFromResponse(cachedResponse)
+    }
+
+    let headResponse = try await self.response(forURL: url, method: .head)
+    return __cacheLastModifiedDateFromResponse(headResponse)
+  }
+
+  func eTag(forURL url: URL) async throws -> HTTPETag? {
+    if let cachedETag = _eTags[url] {
+      return cachedETag
+    }
+
+    func __cacheETagFromResponse<T>(_ response: SimpleHTTPConnection.Response<T>) -> HTTPETag? {
+      let theTag = response.header[.eTag].first?.source as? HTTPETag
+      _eTags[url] = theTag
+      return theTag
+    }
+
+    if let cachedResponse = _responses[url]?[.head] ?? _responses[url]?[.get] {
+      return __cacheETagFromResponse(cachedResponse)
+    }
+
+    let headResponse = try await self.response(forURL: url, method: .head)
+    return __cacheETagFromResponse(headResponse)
+  }
+
+  func indentLevel(for id: String) -> Int {
+    return _indentLevels[id, default: 0]
+  }
+
+  func indent(for id: String) -> String {
+    String(repeating: "  ", count: indentLevel(for: id))
+  }
+
+  func incrementIndentLevel(for id: String) {
+    _indentLevels[id, default: 0] += 1
+  }
+
+  func decrementIndentLevel(for id: String) {
+    _indentLevels[id] = max(0, _indentLevels[id, default: 0] - 1)
+  }
+
+  func taskCount(for id: String) -> Int {
+    let count = _taskCounters[id, default: 0] + 1
+    _taskCounters[id] = count
+    return count
+  }
+}
+
+internal func _viewInfo(_ message: String, jobID: String) async {
+  print("\(await _Cache.shared.indent(for: jobID))ℹ️ \(message)")
+}
+
+public func view(message: String, jobID: String = UUID().uuidString) async {
+  await _viewInfo(message, jobID: jobID)
+}
+
+internal func _do<T>(_ message: String, jobID: String, closure: () async throws -> T) async throws -> T {
+  let indent = await _Cache.shared.indent(for: jobID)
+  let taskCount = await _Cache.shared.taskCount(for: jobID)
+  print("\(indent)⏳ Starting task #\(taskCount) of Job '\(jobID)': \(message)")
+  do {
+    await _Cache.shared.incrementIndentLevel(for: jobID)
+    let result = try await closure()
+    await _Cache.shared.decrementIndentLevel(for: jobID)
+    print("\(indent)✅ Task #\(taskCount) of Job '\(jobID)': Succeeded.")
+    return result
+  } catch {
+    var stderr = FileHandle.standardError
+    print("\(indent)❌ Task #\(taskCount) of Job '\(jobID)': Failed because of an error: \(error)", to: &stderr)
+    throw error
+  }
+}
+
+
+internal func _fetch(_ url: URL, jobID: String) async throws -> Data {
+  return try await _do("Fetching \"\(url.absoluteString)\"...", jobID: jobID) {
+    return try await _Cache.shared.content(ofURL: url)
   }
 }
 
 /// Returns the content of `url`
-public func content(of url: URL) -> Data {
-  return _fetch(url)
+public func content(of url: URL, jobID: String? = nil) async throws -> Data {
+  return try await _fetch(url, jobID: jobID ?? "to fetch \(url.absoluteString)")
 }
 
 // Attributes of URL...
 // TODO: DRY
 
-internal func _lastModified(of url: URL) -> Date? {
-  return _VariableStore.lastModifiedCache.withValue { lastModifiedCache in
-    if lastModifiedCache[url] == Optional<Optional<Date>>.none {
-      let lastModified: Date? = _do("Fetch Last-Modified Date of \(url.absoluteString).") {
-        return try _VariableStore.responseCache.withValue { responseCache in
-          if let cachedResponse = responseCache[url] {
-            return cachedResponse.header[.lastModified].first?.source as? Date
-          }
-          // FIXME: Support concurrency in the future.
-          if url.isFileURL {
-            return try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
-          }
-          return try url.response(to: .init(method: .head)).header[.lastModified].first?.source as? Date
-        }
-      }
-      lastModifiedCache[url] = lastModified
-    }
-    return lastModifiedCache[url]!
+internal func _lastModified(of url: URL, jobID: String) async throws -> Date? {
+  return try await _do("Fetching Last-Modified Date of \"\(url.absoluteString)\"...", jobID: jobID) {
+    return try await _Cache.shared.lastModifiedDate(forURL: url)
   }
 }
 
-internal func _eTag(of url: URL) -> HTTPETag? {
-  return _VariableStore.eTagCache.withValue { eTagCache in
-    if eTagCache[url] == Optional<Optional<HTTPETag>>.none {
-      let eTag: HTTPETag? = _do("Fetch ETag of \(url.absoluteString).") {
-        return try _VariableStore.responseCache.withValue { responseCache in
-          if let cachedResponse = responseCache[url] {
-            return cachedResponse.header[.eTag].first?.source as? HTTPETag
-          }
-          // FIXME: Support concurrency in the future.
-          return try url.response(to: .init(method: .head)).header[.eTag].first?.source as? HTTPETag
-        }
-      }
-      eTagCache[url] = eTag
-    }
-    return eTagCache[url]!
+internal func _eTag(of url: URL, jobID: String) async throws -> HTTPETag? {
+  return try await _do("Fetching ETag of \"\(url.absoluteString)\"...", jobID: jobID) {
+    return try await _Cache.shared.eTag(forURL: url)
   }
 }
 
-internal func _run(_ executableURL: URL, arguments: [String] = [],
-                   currentDirectory: URL? = nil, environment: [String: String]? = nil,
-                   standardInput: String? = nil) -> String?
-{
+internal func _run(
+  _ executableURL: URL,
+  arguments: [String] = [],
+  currentDirectory: URL? = nil,
+  environment: [String: String]? = nil,
+  standardInput: String? = nil,
+  jobID: String
+) async throws -> String? {
   var command = executableURL.path
   if !arguments.isEmpty {
     command += " \(arguments.joined(separator: " "))"
@@ -146,7 +189,7 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
   } else {
     message += " with some inputs."
   }
-  return _do(message) {
+  return try await _do(message, jobID: jobID) {
     let process = Process()
     process.executableURL = executableURL
     process.currentDirectoryURL = currentDirectory
@@ -166,21 +209,27 @@ internal func _run(_ executableURL: URL, arguments: [String] = [],
     process.waitUntilExit()
     
     guard process.terminationStatus == 0 else {
-      _viewInfo("`\(command)` failed.")
+      await _viewInfo("`\(command)` failed.", jobID: jobID)
       return nil
     }
     return String(data: stdout.fileHandleForReading.availableData, encoding: .utf8)
   }
 }
 
-internal func _search(command: String) -> URL? {
-  return _do("Search `\(command)`.") {
+internal func _search(command: String, jobID: String) async throws -> URL? {
+  return try await _do("Search `\(command)`.", jobID: jobID) { () async throws -> URL? in
     let sh = URL(fileURLWithPath: "/bin/sh")
-    guard let result = _run(sh, arguments: ["-c", "which \(command)"])?.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace || $0.latestProperties.isNewline }) else {
+    guard let result = try await _run(
+      sh,
+      arguments: ["-c", "which \(command)"],
+      jobID: jobID
+    )?.trimmingUnicodeScalars(where: {
+        $0.latestProperties.isWhitespace || $0.latestProperties.isNewline
+    }) else {
       return nil
     }
     if result.isEmpty || !result.hasPrefix("/") { return nil }
-    _viewInfo("`\(command)` is at \"\(result)\".")
+    await _viewInfo("`\(command)` is at \"\(result)\".", jobID: jobID)
     return URL(fileURLWithPath: result)
   }
 }
