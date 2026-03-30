@@ -37,15 +37,15 @@ public protocol CodeUpdaterDelegate: Sendable {
   var destinationURL: URL { get }
   
   func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<IntermediateDataType>
-  func convert<S>(_: S) throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
+  func convert<S>(_: S) async throws -> Data where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
 public protocol StringCodeUpdaterDelegate: CodeUpdaterDelegate {
-  func convert<S>(_: S) throws -> String where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
+  func convert<S>(_: S) async throws -> String where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
 public protocol StringLinesCodeUpdaterDelegate: CodeUpdaterDelegate {
-  func convert<S>(_: S) throws -> StringLines where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
+  func convert<S>(_: S) async throws -> StringLines where S: Sequence, S.Element == IntermediateDataContainer<IntermediateDataType>
 }
 
 extension CodeUpdaterDelegate {
@@ -94,8 +94,8 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType: UnicodeData {
 }
 
 extension StringCodeUpdaterDelegate {
-  public func convert<S>(_ intermediates: S) throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
-    guard let data = try self.convert(intermediates).data(using: .utf8) else {
+  public func convert<S>(_ intermediates: S) async throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
+    guard let data = try await self.convert(intermediates).data(using: .utf8) else {
       throw CodeUpdaterError.cannotConvertToData
     }
     return data
@@ -103,8 +103,8 @@ extension StringCodeUpdaterDelegate {
 }
 
 extension StringLinesCodeUpdaterDelegate {
-  public func convert<S>(_ intermediates: S) throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
-    guard let data = try self.convert(intermediates).data(using: .utf8) else {
+  public func convert<S>(_ intermediates: S) async throws -> Data where S : Sequence, S.Element == IntermediateDataContainer<Self.IntermediateDataType> {
+    guard let data = try await self.convert(intermediates).data(using: .utf8) else {
       throw CodeUpdaterError.cannotConvertToData
     }
     return data
