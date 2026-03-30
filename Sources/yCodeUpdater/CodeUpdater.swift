@@ -30,7 +30,7 @@ private extension CodeUpdaterDelegate {
       }
     }
     return try await _do("Converting the intermediate data...", jobID: self.identifier) {
-      return try self.convert(interms)
+      return try await self.convert(interms)
     }
   }
 }
