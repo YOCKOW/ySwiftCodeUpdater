@@ -87,6 +87,13 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == CSVReader {
   }
 }
 
+extension CodeUpdaterDelegate where Self.IntermediateDataType == UnicodeDataTable {
+  public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<IntermediateDataType> {
+    return .init(content: try await IntermediateDataType(url: sourceURL))
+  }
+}
+
+@available(*, deprecated)
 extension CodeUpdaterDelegate where Self.IntermediateDataType: UnicodeData {
   public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<IntermediateDataType> {
     return .init(content: try await IntermediateDataType(url: sourceURL))
