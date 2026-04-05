@@ -19,31 +19,98 @@ enum _HTTPResponseError: Error {
 private actor _Cache {
   static let shared: _Cache = .init()
 
-  private var _responses: [URL: [HTTPMethod: SimpleHTTPConnection.Response<Data>]] = [:]
-  private var _lastModifiedDates: [URL: Date?] = [:]
-  private var _eTags: [URL: HTTPETag?] = [:]
+  private enum _Cached<Value> {
+    typealias Continuation = CheckedContinuation<Value, any Error>
+
+    case cached(Value)
+    case fetching([Continuation])
+
+    mutating func appendContinuation(_ continuation: Continuation) {
+      guard case .fetching(var continuations) = self else {
+        return
+      }
+      continuations.append(continuation)
+      self = .fetching(continuations)
+    }
+  }
+  private struct _MethodSpecificURL: Hashable, Sendable {
+    let url: URL
+    let method: HTTPMethod
+  }
+
+  private var _responses: [_MethodSpecificURL: _Cached<SimpleHTTPConnection.Response<Data>>] = [:]
+  private var _headers: [URL: _Cached<HTTPHeader>] = [:]
 
   private var _indentLevels: [String: Int] = [:]
   private var _taskCounters: [String: Int] = [:]
+
+  private func _addWaitingContinuation<Key, Value>(
+    _ continuation: _Cached<Value>.Continuation,
+    to dict: inout [Key: _Cached<Value>],
+    for key: Key
+  ) where Key: Hashable {
+    dict[key, default: .fetching([])].appendContinuation(continuation)
+  }
+
+  private func _resumeContinuations<Key, Value>(
+    of dict: inout [Key: _Cached<Value>],
+    for key: Key,
+    with result: Result<Value, any Error>
+  ) where Key: Hashable, Value: Sendable {
+    guard case .fetching(let continuations) = dict[key] else {
+      return
+    }
+    for continuation in continuations {
+      continuation.resume(with: result)
+    }
+  }
 
   func response(
     forURL url: URL,
     method: HTTPMethod
   ) async throws -> SimpleHTTPConnection.Response<Data> {
-    if let cachedResponse = _responses[url]?[method] {
-      return cachedResponse
+    let key = _MethodSpecificURL(url: url, method: method)
+    if let cachedResponse = _responses[key] {
+      func __viewMessage() async {
+        #if DEBUG
+        await _viewInfo(
+          "Cache Hit: Method=\(method.rawValue); URL=\(url.absoluteString)",
+          jobID: "Cache Check \(url.absoluteString)"
+        )
+        #endif
+      }
+      switch cachedResponse {
+      case .cached(let response):
+        await __viewMessage()
+        return response
+      case .fetching:
+        let response = try await withCheckedThrowingContinuation { continuation in
+          _addWaitingContinuation(continuation, to: &self._responses, for: key)
+        }
+        await __viewMessage()
+        return response
+      }
     }
 
+    _responses[key] = .fetching([])
     let request = SimpleHTTPConnection.Request(
       url: url,
       method: method,
       redirectStrategy: .followRedirects
     )
-    let newResponse = try await SimpleHTTPConnection(request: request).response()
-    guard newResponse.statusCode.isOK else {
-      throw _HTTPResponseError.unexpectedStatusCode(newResponse.statusCode)
+    var newResponse: SimpleHTTPConnection.Response<Data>!
+    do {
+      newResponse = try await SimpleHTTPConnection(request: request).response()
+      guard newResponse.statusCode.isOK else {
+        throw _HTTPResponseError.unexpectedStatusCode(newResponse.statusCode)
+      }
+    } catch {
+      _resumeContinuations(of: &self._responses, for: key, with: .failure(error))
+      throw error
     }
-    _responses[url, default: [:]][method] = newResponse
+
+    _resumeContinuations(of: &self._responses, for: key, with: .success(newResponse))
+    _responses[key] = .cached(newResponse)
     return newResponse
   }
 
@@ -58,42 +125,46 @@ private actor _Cache {
     return content
   }
 
+  private func _header(ofURL url: URL) async throws -> HTTPHeader {
+    if let cachedHeader = _headers[url] {
+      switch cachedHeader {
+      case .cached(let header):
+        return header
+      case .fetching:
+        return try await withCheckedThrowingContinuation { continuation in
+          _addWaitingContinuation(continuation, to: &self._headers, for: url)
+        }
+      }
+    }
+
+    _headers[url] = .fetching([])
+
+    var someResponse: SimpleHTTPConnection.Response<Data>!
+    do {
+      if _responses.keys.contains(_MethodSpecificURL(url: url, method: .get)) {
+        someResponse = try await self.response(forURL: url, method: .get)
+      } else {
+        someResponse = try await self.response(forURL: url, method: .head)
+      }
+    } catch {
+      _resumeContinuations(of: &self._headers, for: url, with: .failure(error))
+      throw error
+    }
+
+    let header = someResponse.header
+    _resumeContinuations(of: &self._headers, for: url, with: .success(header))
+    _headers[url] = .cached(header)
+    return header
+  }
+
   func lastModifiedDate(forURL url: URL) async throws -> Date? {
-    if let cachedDate = _lastModifiedDates[url] {
-      return cachedDate
-    }
-
-    func __cacheLastModifiedDateFromResponse<T>(_ response: SimpleHTTPConnection.Response<T>) -> Date? {
-      let theDate = response.header[.lastModified].first?.source as? Date
-      _lastModifiedDates[url] = theDate
-      return theDate
-    }
-
-    if let cachedResponse = _responses[url]?[.head] ?? _responses[url]?[.get] {
-      return __cacheLastModifiedDateFromResponse(cachedResponse)
-    }
-
-    let headResponse = try await self.response(forURL: url, method: .head)
-    return __cacheLastModifiedDateFromResponse(headResponse)
+    let header = try await _header(ofURL: url)
+    return header[.lastModified].first?.source as? Date
   }
 
   func eTag(forURL url: URL) async throws -> HTTPETag? {
-    if let cachedETag = _eTags[url] {
-      return cachedETag
-    }
-
-    func __cacheETagFromResponse<T>(_ response: SimpleHTTPConnection.Response<T>) -> HTTPETag? {
-      let theTag = response.header[.eTag].first?.source as? HTTPETag
-      _eTags[url] = theTag
-      return theTag
-    }
-
-    if let cachedResponse = _responses[url]?[.head] ?? _responses[url]?[.get] {
-      return __cacheETagFromResponse(cachedResponse)
-    }
-
-    let headResponse = try await self.response(forURL: url, method: .head)
-    return __cacheETagFromResponse(headResponse)
+    let header = try await _header(ofURL: url)
+    return header[.eTag].first?.source as? HTTPETag
   }
 
   func indentLevel(for id: String) -> Int {
@@ -151,9 +222,10 @@ internal func _fetch(_ url: URL, jobID: String) async throws -> Data {
   }
 }
 
-/// Returns the content of `url`
+/// Returns the content of `url`.
+/// Cached data may be used if available.
 public func content(of url: URL, jobID: String? = nil) async throws -> Data {
-  return try await _fetch(url, jobID: jobID ?? "to fetch \(url.absoluteString)")
+  return try await _fetch(url, jobID: jobID ?? "Fetching \(url.absoluteString)")
 }
 
 // Attributes of URL...

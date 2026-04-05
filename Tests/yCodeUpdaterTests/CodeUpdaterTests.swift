@@ -13,6 +13,26 @@ import yExtensions
 import Testing
 
 @Suite final class CodeUpdaterTests {
+  @Test func test_cache() async throws {
+    let url = try #require(URL(string: "https://example.com/"))
+    let jobID = "Test \(#function)"
+    let N = 10
+    let results = try await withThrowingTaskGroup(returning: [Data].self) { group in
+      for _ in 0..<N {
+        group.addTask {
+          try await content(of: url, jobID: jobID)
+        }
+      }
+      var results: [Data] = []
+      while let data = try await group.next() {
+        results.append(data)
+      }
+      return results
+    }
+    #expect(results.count == N)
+    #expect(results.allSatisfy({ $0.count != 0 && $0 == results.first }))
+  }
+
   @Test func test_update() async throws {
     final class Delegate: CodeUpdaterDelegate {
       typealias IntermediateDataType = Data
