@@ -5,7 +5,6 @@
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
 
-import Dispatch
 import Foundation
 import NetworkGear
 import StringComposition
@@ -22,33 +21,40 @@ private let _tokenKindsDefRemoteURL = URL(string: "https://raw.githubusercontent
 private actor _Cache {
   static let shared: _Cache = .init()
 
-  var _tokenKindsDefContent: String? = nil
-  var tokenKindsDefContent: String {
-    get async throws {
-      if let content = self._tokenKindsDefContent {
-        return content
-      }
-
-      guard let string = String(
-        data: try await _fetch(_tokenKindsDefRemoteURL, jobID: "SwiftKeywords"),
-        encoding: .utf8
-      ) else {
-        throw _SwiftKeywordsError.unexpectedRemoteContent
-      }
-      _tokenKindsDefContent = string
-      return string
-    }
-  }
-
-  var _swiftKeywords: Set<String>?
+  private var _swiftKeywords: _Cached<Set<String>>? = nil
   var swiftKeywords: Set<String> {
     get async throws {
-      if let keywords = self._swiftKeywords {
-        return keywords
+      if let cachedKeywords = _swiftKeywords {
+        switch cachedKeywords {
+        case .cached(let keywords):
+          return keywords
+        case .processing:
+          return try await withCheckedThrowingContinuation {
+            _swiftKeywords!.appendContinuation($0)
+          }
+        }
+      }
+
+      _swiftKeywords = .processing([])
+      var defContentString: String!
+      do {
+        let data = try await JobManager.default.do(
+          "Fetch Source for Swift Keywords.",
+          jobID: "Swift Keywords"
+        ) { ctx in
+          return try await ctx.content(of: _tokenKindsDefRemoteURL)
+        }
+        guard let string = String(data: data, encoding: .utf8) else {
+          throw _SwiftKeywordsError.unexpectedRemoteContent
+        }
+        defContentString = string
+      } catch {
+        _swiftKeywords!.resumeContinuations(with: .failure(error))
+        throw error
       }
 
       var result = Set<String>()
-      for line in StringLines(try await tokenKindsDefContent) {
+      for line in StringLines(defContentString) {
         let payload = line.payload
         guard (
           payload.hasPrefix("DECL_KEYWORD") ||
@@ -65,6 +71,8 @@ private actor _Cache {
         }
         result.insert(String(payload[payload.index(after: lParenIndex)..<rParenIndex]))
       }
+      _swiftKeywords!.resumeContinuations(with: .success(result))
+      _swiftKeywords = .cached(result)
       return result
     }
   }
