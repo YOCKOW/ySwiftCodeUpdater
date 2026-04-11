@@ -20,16 +20,41 @@ private let _HEADER = """
 
 
 private extension CodeUpdaterDelegate {
-  func _outrightConvert() async throws -> Data {
-    var interms: Array<IntermediateDataContainer<Self.IntermediateDataType>> = []
-    try await _do("Preparing data conversion...", jobID: self.identifier) {
-      for url in self.sourceURLs {
-        var interm = try await self.prepare(sourceURL: url)
-        interm.sourceURL = url
-        interms.append(interm)
+  func _outrightConvert(inContext context: JobManager.Context) async throws -> Data {
+    let sourceURLs = self.sourceURLs
+
+    let interms = try await context.do(
+      "Preparing data conversion..."
+    ) { _ in
+      return try await withThrowingTaskGroup(
+        of: IntermediateDataContainer<Self.IntermediateDataType>.self,
+        returning: Array<IntermediateDataContainer<Self.IntermediateDataType>>.self
+      ) { group in
+        for url in sourceURLs {
+          group.addTask {
+            var interm = try await self.prepare(sourceURL: url)
+            interm.sourceURL = url
+            return interm
+          }
+        }
+
+        let dict = try await group.reduce(
+          into: Dictionary<URL, IntermediateDataContainer<Self.IntermediateDataType>>()
+        ){
+          $0[$1.sourceURL] = $1
+        }
+
+        var result = Array<IntermediateDataContainer<Self.IntermediateDataType>>()
+        for url in sourceURLs {
+          result.append(dict[url]!)
+        }
+        return result
       }
     }
-    return try await _do("Converting the intermediate data...", jobID: self.identifier) {
+
+    return try await context.do(
+      "Converting the intermediate data..."
+    ) { _ in
       return try await self.convert(interms)
     }
   }
@@ -56,11 +81,12 @@ public final class CodeUpdater: @unchecked Sendable {
           return convertedData
         }
 
-        await _viewInfo(
-          "\(owner.identifier): Starting data conversion...",
+        let convertedData = try await JobManager.default.do(
+          "Starting data conversion...",
           jobID: owner.identifier
-        )
-        let convertedData = try await owner._delegate._outrightConvert()
+        ) { ctx in
+          return try await owner._delegate._outrightConvert(inContext: ctx)
+        }
         self._convertedData = convertedData
         return convertedData
       }
@@ -80,62 +106,70 @@ public final class CodeUpdater: @unchecked Sendable {
   }
   
   public func shouldUpdate() async throws -> Bool {
-    if !FileManager.default.fileExists(atPath: self._delegate.destinationURL.path) {
-      return true
-    }
-
-    let info = try _TargetFileInfo(fileAt: self._delegate.destinationURL)
-    for sourceURL in self._delegate.sourceURLs {
-      if !info.containsInfo(for: sourceURL) { return true }
-      switch (info.lastModifiedDate(for: sourceURL), info.eTag(for: sourceURL)) {
-      case (nil, nil):
+    return try await JobManager.default.do(
+      "Determining whether to update...",
+      jobID: self.identifier
+    ) { (context) -> Bool in
+      if !FileManager.default.fileExists(atPath: self._delegate.destinationURL.path) {
         return true
-      case (let dest_lastModified?, nil):
-        guard let source_lastModified = try await _lastModified(of: sourceURL, jobID: identifier) else {
-          return true
-        }
-        if dest_lastModified < source_lastModified { return true }
-      case (nil, let dest_ETag?):
-        guard let source_ETag = try await _eTag(of: sourceURL, jobID: identifier) else {
-          return true
-        }
-        if !(dest_ETag =~ source_ETag) { return true }
-      case (let dest_lastModified?, let dest_ETag?):
-        guard
-          let source_lastModified = try await _lastModified(of: sourceURL, jobID: identifier),
-          let source_ETag = try await _eTag(of: sourceURL, jobID: identifier)
-          else {
-            return true
-        }
-        if dest_lastModified < source_lastModified || !(dest_ETag =~ source_ETag) { return true }
       }
+
+      let info = try _TargetFileInfo(fileAt: self._delegate.destinationURL)
+      for sourceURL in self._delegate.sourceURLs {
+        if !info.containsInfo(for: sourceURL) { return true }
+        switch (info.lastModifiedDate(for: sourceURL), info.eTag(for: sourceURL)) {
+        case (nil, nil):
+          return true
+        case (let dest_lastModified?, nil):
+          guard let source_lastModified = try await context.lastModifiedDate(of: sourceURL) else {
+            return true
+          }
+          if dest_lastModified < source_lastModified { return true }
+        case (nil, let dest_ETag?):
+          guard let source_ETag = try await context.eTag(of: sourceURL) else {
+            return true
+          }
+          if !(dest_ETag =~ source_ETag) { return true }
+        case (let dest_lastModified?, let dest_ETag?):
+          guard
+            let source_lastModified = try await context.lastModifiedDate(of: sourceURL),
+            let source_ETag = try await context.eTag(of: sourceURL)
+          else {
+              return true
+          }
+          if dest_lastModified < source_lastModified || !(dest_ETag =~ source_ETag) { return true }
+        }
+      }
+      return false
     }
-    return false
   }
 
   public func update() async throws {
     let destURL = self._delegate.destinationURL
     let destPath = destURL.path
-    try await _do("Updating file at '\(destPath)'...", jobID: identifier) { @Sendable in
+    try await JobManager.default.do(
+      "Updating file at '\(destPath)'...",
+      jobID: identifier
+    ) { context in
       let forcesToUpdate = self.forcesToUpdate
       let shouldUpdate = try await self.shouldUpdate()
       if !forcesToUpdate && !shouldUpdate {
-        await _viewInfo("File at \(destPath) is already up-to-date.", jobID: identifier)
+        context.view(message: "File at \(destPath) is already up-to-date.")
         return
       }
 
       let data = try await convertedData
       let temporaryFile = HybridTemporaryFile()
       defer { try? temporaryFile.close() }
-      try await _do("Writing the data to temporary file...", jobID: identifier) {
+      try await context.do("Writing the data to temporary file...") { subcontext in
         try temporaryFile.write(contentsOf: _HEADER)
         for url in self._delegate.sourceURLs {
           try temporaryFile.write(string: "//\n")
           try temporaryFile.write(string: "// URL: \(url.absoluteURL)\n")
-          if let lastModified = try await _lastModified(of: url, jobID: identifier) {
+          if let lastModified = try await subcontext.lastModifiedDate(of: url) {
             try temporaryFile.write(string: "// Last-Modified: \(lastModified.iso8601String)\n")
           }
-          if let eTag = try await _eTag(of: url, jobID: identifier) {
+          if let eTag = try await subcontext.eTag(of: url) {
             try temporaryFile.write(string: "// ETag: \(eTag.description)\n")
           }
         }
@@ -144,7 +178,7 @@ public final class CodeUpdater: @unchecked Sendable {
       }
       
       let backupURL = destURL.appendingPathExtension("old")
-      try await _do("Copying the temporary file to the destination...", jobID: identifier) {
+      try await context.do("Copying the temporary file to the destination...") { _ in
         if destURL.isExistingLocalFile {
           try FileManager.default.moveItem(at: destURL, to: backupURL)
         }

@@ -17,18 +17,38 @@ private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.tx
 private actor _UnicodeLicense {
   static let shared: _UnicodeLicense = .init()
 
-  private var _unicodeLicense: String? = nil
+  private var _unicodeLicense: _Cached<String>? = nil
   var unicodeLicense: String {
     get async throws {
-      if let license = _unicodeLicense {
-        return license
+      if let cachedLicense = _unicodeLicense {
+        switch cachedLicense {
+        case .cached(let value):
+          return value
+        case .processing:
+          return try await withCheckedThrowingContinuation {
+            _unicodeLicense!.appendContinuation($0)
+          }
+        }
       }
 
-      let license = String(
-        data: try await _fetch(_unicodeLicenseURL, jobID: "Unicode License"),
-        encoding: .utf8
-      )!
-      _unicodeLicense = license
+      _unicodeLicense = .processing([])
+      var license: String!
+      do {
+        license = try await JobManager.default.do(
+          "Fetch Unicode License",
+          jobID: "Unicode License"
+        ) { ctx in
+          String(
+            data: try await ctx.content(of: _unicodeLicenseURL),
+            encoding: .utf8
+          )!
+        }
+      } catch {
+        _unicodeLicense!.resumeContinuations(with: .failure(error))
+        throw error
+      }
+      _unicodeLicense!.resumeContinuations(with: .success(license))
+      _unicodeLicense = .cached(license)
       return license
     }
   }
@@ -159,9 +179,14 @@ public struct UnicodeDataTable: Sendable {
   }
 
   public init(url: URL) async throws {
-    let data = try await _fetch(url, jobID: "Remote Unicode Data")
-    guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
-    self.init(string)
+    self = try await JobManager.default.do(
+      "Fetch Unicode Data at \(url.absoluteString)",
+      jobID: "Remote Unicode Data"
+    ) { ctx in
+      let data = try await ctx.content(of: url)
+      guard let string = String(data: data, encoding: .utf8) else { throw Error.nonUTF8 }
+      return UnicodeDataTable(string)
+    }
   }
 
   /// Returns a range-dictionary converting columns.

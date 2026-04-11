@@ -1,6 +1,6 @@
 /* *************************************************************************************************
  CodeUpdaterManager.swift
-   © 2019,2024 YOCKOW.
+   © 2019,2024,2026 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
  ************************************************************************************************ */
@@ -8,28 +8,27 @@
 import Foundation
 import yExtensions
 
-open class CodeUpdaterManager {
-  private var _updaters: Dictionary<String, CodeUpdater> = [:]
+public actor CodeUpdaterManager {
+  private var _updaters: Dictionary<String, CodeUpdater>
   
-  open var updaters: Array<CodeUpdater> {
-    get {
-      return self._updaters.values.sorted(by: { $0.identifier.lowercased() < $1.identifier.lowercased() })
-    }
-    set(newUpdaters) {
-      self._updaters = newUpdaters.reduce(into: [:]) { $0[$1.identifier] = $1 }
-    }
+  public var updaters: Array<CodeUpdater> {
+    self._updaters.values.sorted(by: { $0.identifier.lowercased() < $1.identifier.lowercased() })
   }
   
   /// Add an updater
-  open func add(_ updater: CodeUpdater) {
+  public func add(_ updater: CodeUpdater) {
     self._updaters[updater.identifier] = updater
   }
   
   /// Add an updater's delegate
-  open func add<D>(_ delegate: D) where D: CodeUpdaterDelegate {
+  public func add<D>(_ delegate: D) where D: CodeUpdaterDelegate {
     self.add(CodeUpdater(delegate: delegate))
   }
-  
+
+  public func set<S>(updaters: S) where S: Sequence, S.Element == CodeUpdater {
+    self._updaters = updaters.reduce(into: [:]) { $0[$1.identifier] = $1 }
+  }
+
   private enum _Arguments: Equatable, Sendable {
     enum _Identifiers: Equatable, Sendable {
       case all
@@ -166,13 +165,20 @@ open class CodeUpdaterManager {
       return false
     }
   }
-  
+
+  /// Initializes the manager.
+  ///
   /// - parameter arguments: Expected to be the same with `ARGV`.
-  public init(arguments: Array<String> = .init(ProcessInfo.processInfo.arguments.dropFirst())) {
+  /// - parameter updaters: Instances of `CodeUpdater`.
+  public init<S>(
+    arguments: Array<String> = .init(ProcessInfo.processInfo.arguments.dropFirst()),
+    updaters: S = Array<CodeUpdater>()
+  ) where S: Sequence, S.Element == CodeUpdater {
     self._arguments = _Arguments(arguments)
+    self._updaters = updaters.reduce(into: [:]) { $0[$1.identifier] = $1 }
   }
   
-  open func viewHelp() {
+  public func viewHelp() {
     print("""
     options:
       -h, --help               Show this message.
@@ -185,7 +191,7 @@ open class CodeUpdaterManager {
     """)
   }
   
-  open func showUpdaters() {
+  public func showUpdaters() {
     func _show(updater: CodeUpdater) {
       print("ID: \(updater.identifier)")
       let sourceURLs = updater.sourceURLs
@@ -211,8 +217,16 @@ open class CodeUpdaterManager {
   internal var _shouldViewHelp: Bool { return self._arguments == .help }
   
   internal var _shouldShowUpdaters: Bool { return self._arguments == .showUpdaters }
-  
-  open func run() async {
+
+  private enum _Status {
+    case pending
+    case updating
+    case done
+  }
+  private var _status: _Status = .pending
+
+  /// Run all updaters.
+  public func run() async {
     if self._shouldViewHelp {
       self.viewHelp()
       return
@@ -223,20 +237,53 @@ open class CodeUpdaterManager {
       return
     }
 
-    await withThrowingTaskGroup(of: Void.self, returning: Void.self) { group in
-      for updater in self.updaters {
-        if self._skips(fileOf: updater.identifier) {
-          await _viewInfo("Skip `\(updater.identifier)`.", jobID: "main")
-          continue
+
+    @Sendable func __warn(message: String) {
+      var stdout = FileHandle.standardOutput
+      print("⚠️ \(message)", to: &stdout)
+    }
+    switch _status {
+    case .pending:
+      _status = .updating
+    case .updating:
+      __warn(message: "Now updating.")
+      return
+    case .done:
+      __warn(message: "Already updated.")
+      return
+    }
+    await JobManager.default.do("Update Source Files", jobID: "main") { mainContext in
+      let errors = await withThrowingTaskGroup(of: Void.self, returning: Array<any Error>.self) { group in
+        for updater in await self.updaters {
+          if await self._skips(fileOf: updater.identifier) {
+            mainContext.view(message: "Skip `\(updater.identifier)`.")
+            continue
+          }
+
+          if await self._forcesToUpdate(fileOf: updater.identifier) {
+            updater.forcesToUpdate = true
+          }
+          group.addTask {
+            try await updater.update()
+          }
         }
 
-        if self._forcesToUpdate(fileOf: updater.identifier) {
-          updater.forcesToUpdate = true
+        var errors: [any Error] = []
+        while let result = await group.nextResult() {
+          if case .failure(let failure) = result {
+            errors.append(failure)
+          }
         }
-        group.addTask {
-          try await updater.update()
+        return errors
+      }
+
+      if !errors.isEmpty {
+        switch errors.count {
+        case 1: __warn(message: "An error occurred.")
+        default: __warn(message: "\(errors.count) errors occurred.")
         }
       }
     }
+    _status = .done
   }
 }

@@ -18,7 +18,12 @@ extension CSVReader {
     delimiter: UnicodeScalar = defaultDelimiter,
     whitespaces: CharacterSet = defaultWhitespaces
   ) async throws {
-    let content = try await _fetch(url, jobID: "Remote CSV")
+    let content = try await JobManager.default.do(
+      "Initializing `CSVReader` with '\(url)'...",
+      jobID: "Remote CSV"
+    ) { ctx in
+      return try await ctx.content(of: url)
+    }
     guard let string = String(data: content, encoding: encoding) else { throw CSVError.cannotReadFile }
     try self.init(
       string: string,

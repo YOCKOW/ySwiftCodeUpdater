@@ -56,15 +56,23 @@ extension CodeUpdaterDelegate {
   }
 }
 
+private extension CodeUpdaterDelegate {
+  func _fetch(_ url: URL) async throws -> Data {
+    try await JobManager.default.do("Fetch \(url.absoluteString)", jobID: identifier) { ctx in
+      try await ctx.content(of: url)
+    }
+  }
+}
+
 extension CodeUpdaterDelegate where Self.IntermediateDataType == Data {
   public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<Data> {
-    return .init(content: try await _fetch(sourceURL, jobID: self.identifier))
+    return .init(content: try await _fetch(sourceURL))
   }
 }
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == String {
   public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<String> {
-    guard let string = String(data: try await _fetch(sourceURL, jobID: self.identifier), encoding: .utf8) else {
+    guard let string = String(data: try await _fetch(sourceURL), encoding: .utf8) else {
       throw CodeUpdaterError.cannotConvertToString
     }
     return .init(content: string)
@@ -73,7 +81,7 @@ extension CodeUpdaterDelegate where Self.IntermediateDataType == String {
 
 extension CodeUpdaterDelegate where Self.IntermediateDataType == StringLines {
   public func prepare(sourceURL: URL) async throws -> IntermediateDataContainer<StringLines> {
-    guard let string = String(data: try await _fetch(sourceURL, jobID: self.identifier), encoding: .utf8) else {
+    guard let string = String(data: try await _fetch(sourceURL), encoding: .utf8) else {
       throw CodeUpdaterError.cannotConvertToString
     }
     return .init(content: StringLines(string, detectIndent: true))

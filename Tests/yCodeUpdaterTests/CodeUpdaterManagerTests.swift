@@ -9,22 +9,22 @@
 import Testing
 
 @Suite final class CodeUpdaterManagerTests {
-  @Test func test_arguments() {
+  @Test func test_arguments() async {
     var manager = CodeUpdaterManager(arguments: ["-f", "Forced", "-s", "Skipped"])
-    #expect(manager._forcesToUpdate(fileOf: "Forced"))
-    #expect(manager._skips(fileOf: "Skipped"))
+    #expect(await manager._forcesToUpdate(fileOf: "Forced"))
+    #expect(await manager._skips(fileOf: "Skipped"))
 
     manager = CodeUpdaterManager(arguments: ["--only", "Only"])
-    #expect(manager._forcesToUpdate(fileOf: "Only"))
-    #expect(!manager._skips(fileOf: "Only"))
+    #expect(await manager._forcesToUpdate(fileOf: "Only"))
+    #expect(await !manager._skips(fileOf: "Only"))
 
     manager = CodeUpdaterManager(arguments: ["--force-all"])
-    #expect(manager._forcesToUpdate(fileOf: "AnyFile"))
+    #expect(await manager._forcesToUpdate(fileOf: "AnyFile"))
 
     manager = CodeUpdaterManager(arguments: ["--show-updaters"])
-    #expect(manager._shouldShowUpdaters)
+    #expect(await manager._shouldShowUpdaters)
 
     manager = CodeUpdaterManager(arguments: [])
-    #expect(!manager._forcesToUpdate(fileOf: "AnyFile"))
+    #expect(await !manager._forcesToUpdate(fileOf: "AnyFile"))
   }
 }
