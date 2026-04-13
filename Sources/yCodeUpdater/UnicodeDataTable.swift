@@ -12,44 +12,30 @@ import Ranges
 import yExtensions
 import yProtocols
 
+private enum _UnicodeLicenseError: Error {
+  case unexpectedRemoteContent
+}
+
 private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.txt")!
 
 private actor _UnicodeLicense {
   static let shared: _UnicodeLicense = .init()
 
-  private var _unicodeLicense: _Cached<String>? = nil
+  private let _unicodeLicense: CacheStore<String> = .init()
   var unicodeLicense: String {
     get async throws {
-      if let cachedLicense = _unicodeLicense {
-        switch cachedLicense {
-        case .cached(let value):
-          return value
-        case .processing:
-          return try await withCheckedThrowingContinuation {
-            _unicodeLicense!.appendContinuation($0)
-          }
-        }
-      }
-
-      _unicodeLicense = .processing([])
-      var license: String!
-      do {
-        license = try await JobManager.default.do(
-          "Fetch Unicode License",
+      try await _unicodeLicense.getValue { () async throws -> String in
+        try await JobManager.default.do(
+          "Fetch Unicode License.",
           jobID: "Unicode License"
-        ) { ctx in
-          String(
-            data: try await ctx.content(of: _unicodeLicenseURL),
-            encoding: .utf8
-          )!
+        ) { context in
+          let licenseData = try await context.content(of: _unicodeLicenseURL)
+          guard let licenseString = String(data: licenseData, encoding: .utf8) else {
+            throw _UnicodeLicenseError.unexpectedRemoteContent
+          }
+          return licenseString
         }
-      } catch {
-        _unicodeLicense!.resumeContinuations(with: .failure(error))
-        throw error
       }
-      _unicodeLicense!.resumeContinuations(with: .success(license))
-      _unicodeLicense = .cached(license)
-      return license
     }
   }
 }
