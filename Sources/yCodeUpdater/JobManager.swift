@@ -16,28 +16,6 @@ enum _HTTPResponseError: Error {
   case noContent
 }
 
-internal enum _Cached<Value> where Value: Sendable {
-  typealias Continuation = CheckedContinuation<Value, any Error>
-
-  case cached(Value)
-  case processing([Continuation])
-
-  mutating func appendContinuation(_ continuation: Continuation) {
-    guard case .processing(var continuations) = self else {
-      return
-    }
-    continuations.append(continuation)
-    self = .processing(continuations)
-  }
-
-  func resumeContinuations(with result: Result<Value, any Error>) {
-    guard case .processing(let continuations) = self else {
-      return
-    }
-    continuations.forEach({ $0.resume(with: result) })
-  }
-}
-
 private actor _HTTPResponseCache {
   static let shared: _HTTPResponseCache = .init()
   private init() {}
@@ -47,62 +25,28 @@ private actor _HTTPResponseCache {
     let method: HTTPMethod
   }
 
-  private var _responses: [_MethodSpecificURL: _Cached<SimpleHTTPConnection.Response<Data>>] = [:]
-  private var _headers: [URL: _Cached<HTTPHeader>] = [:]
-
-  private func _addWaitingContinuation<Key, Value>(
-    _ continuation: _Cached<Value>.Continuation,
-    to dict: inout [Key: _Cached<Value>],
-    for key: Key
-  ) where Key: Hashable {
-    dict[key, default: .processing([])].appendContinuation(continuation)
-  }
-
-  private func _resumeContinuations<Key, Value>(
-    of dict: inout [Key: _Cached<Value>],
-    for key: Key,
-    with result: Result<Value, any Error>
-  ) where Key: Hashable, Value: Sendable {
-    dict[key]?.resumeContinuations(with: result)
-  }
+  private var _responses: KeyedCacheStore<_MethodSpecificURL, SimpleHTTPConnection.Response<Data>> = .init()
+  private var _headers: KeyedCacheStore<URL, HTTPHeader> = .init()
 
   func response(
     forURL url: URL,
     method: HTTPMethod
   ) async throws -> (response: SimpleHTTPConnection.Response<Data>, cacheHit: Bool) {
     let key = _MethodSpecificURL(url: url, method: method)
-    if let cachedResponse = _responses[key] {
-      switch cachedResponse {
-      case .cached(let response):
-        return (response, true)
-      case .processing:
-        let response = try await withCheckedThrowingContinuation { continuation in
-          _addWaitingContinuation(continuation, to: &self._responses, for: key)
-        }
-        return (response, true)
+    var isCached = false
+    let response = try await _responses.value(for: key, isCached: &isCached) {
+      let request = SimpleHTTPConnection.Request(
+        url: url,
+        method: method,
+        redirectStrategy: .followRedirects
+      )
+      let response = try await SimpleHTTPConnection(request: request).response()
+      guard response.statusCode.isOK else {
+        throw _HTTPResponseError.unexpectedStatusCode(response.statusCode)
       }
+      return response
     }
-
-    _responses[key] = .processing([])
-    let request = SimpleHTTPConnection.Request(
-      url: url,
-      method: method,
-      redirectStrategy: .followRedirects
-    )
-    var newResponse: SimpleHTTPConnection.Response<Data>!
-    do {
-      newResponse = try await SimpleHTTPConnection(request: request).response()
-      guard newResponse.statusCode.isOK else {
-        throw _HTTPResponseError.unexpectedStatusCode(newResponse.statusCode)
-      }
-    } catch {
-      _resumeContinuations(of: &self._responses, for: key, with: .failure(error))
-      throw error
-    }
-
-    _resumeContinuations(of: &self._responses, for: key, with: .success(newResponse))
-    _responses[key] = .cached(newResponse)
-    return (newResponse, false)
+    return (response, isCached)
   }
 
   func content(ofURL url: URL) async throws -> (content: Data, cacheHit: Bool) {
@@ -114,36 +58,17 @@ private actor _HTTPResponseCache {
   }
 
   private func _header(ofURL url: URL) async throws -> (header: HTTPHeader, cacheHit: Bool) {
-    if let cachedHeader = _headers[url] {
-      switch cachedHeader {
-      case .cached(let header):
-        return (header, true)
-      case .processing:
-        let header = try await withCheckedThrowingContinuation { continuation in
-          _addWaitingContinuation(continuation, to: &self._headers, for: url)
-        }
-        return (header, true)
+    if await _responses.keys.contains(_MethodSpecificURL(url: url, method: .get)) {
+      if let responseResult = try? await self.response(forURL: url, method: .get) {
+        return (responseResult.response.header, responseResult.cacheHit)
       }
     }
 
-    _headers[url] = .processing([])
-
-    var someResponse: (response: SimpleHTTPConnection.Response<Data>, cacheHit: Bool)!
-    do {
-      if _responses.keys.contains(_MethodSpecificURL(url: url, method: .get)) {
-        someResponse = try await self.response(forURL: url, method: .get)
-      } else {
-        someResponse = try await self.response(forURL: url, method: .head)
-      }
-    } catch {
-      _resumeContinuations(of: &self._headers, for: url, with: .failure(error))
-      throw error
+    var isCached = false
+    let header = try await _headers.value(for: url, isCached: &isCached) {
+      return try await self.response(forURL: url, method: .head).response.header
     }
-
-    let header = someResponse.response.header
-    _resumeContinuations(of: &self._headers, for: url, with: .success(header))
-    _headers[url] = .cached(header)
-    return (header, someResponse.cacheHit)
+    return (header, isCached)
   }
 
   func lastModifiedDate(forURL url: URL) async throws -> (date: Date?, cacheHit: Bool) {

@@ -17,63 +17,43 @@ private enum _SwiftKeywordsError: Error {
 }
 
 private let _tokenKindsDefRemoteURL = URL(string: "https://raw.githubusercontent.com/swiftlang/swift/main/include/swift/AST/TokenKinds.def")!
-
 private actor _Cache {
   static let shared: _Cache = .init()
 
-  private var _swiftKeywords: _Cached<Set<String>>? = nil
+  private let _swiftKeywords: Cached<Set<String>> = .init()
   var swiftKeywords: Set<String> {
     get async throws {
-      if let cachedKeywords = _swiftKeywords {
-        switch cachedKeywords {
-        case .cached(let keywords):
-          return keywords
-        case .processing:
-          return try await withCheckedThrowingContinuation {
-            _swiftKeywords!.appendContinuation($0)
-          }
-        }
-      }
-
-      _swiftKeywords = .processing([])
-      var defContentString: String!
-      do {
-        let data = try await JobManager.default.do(
+      try await _swiftKeywords.getValue { () async throws -> Set<String> in
+        try await JobManager.default.do(
           "Fetch Source for Swift Keywords.",
           jobID: "Swift Keywords"
-        ) { ctx in
-          return try await ctx.content(of: _tokenKindsDefRemoteURL)
-        }
-        guard let string = String(data: data, encoding: .utf8) else {
-          throw _SwiftKeywordsError.unexpectedRemoteContent
-        }
-        defContentString = string
-      } catch {
-        _swiftKeywords!.resumeContinuations(with: .failure(error))
-        throw error
-      }
+        ) { context in
+          let data = try await context.content(of: _tokenKindsDefRemoteURL)
+          guard let string = String(data: data, encoding: .utf8) else {
+            throw _SwiftKeywordsError.unexpectedRemoteContent
+          }
 
-      var result = Set<String>()
-      for line in StringLines(defContentString) {
-        let payload = line.payload
-        guard (
-          payload.hasPrefix("DECL_KEYWORD") ||
-          payload.hasPrefix("STMT_KEYWORD") ||
-          payload.hasPrefix("EXPR_KEYWORD")
-        ) else {
-          continue
+          var result = Set<String>()
+          for line in StringLines(string) {
+            let payload = line.payload
+            guard (
+              payload.hasPrefix("DECL_KEYWORD") ||
+              payload.hasPrefix("STMT_KEYWORD") ||
+              payload.hasPrefix("EXPR_KEYWORD")
+            ) else {
+              continue
+            }
+            guard let lParenIndex = payload.firstIndex(of: "("),
+                  let rParenIndex = payload.firstIndex(of: ")"),
+                  lParenIndex < rParenIndex
+            else {
+              continue
+            }
+            result.insert(String(payload[payload.index(after: lParenIndex)..<rParenIndex]))
+          }
+          return result
         }
-        guard let lParenIndex = payload.firstIndex(of: "("),
-              let rParenIndex = payload.firstIndex(of: ")"),
-              lParenIndex < rParenIndex
-        else {
-          continue
-        }
-        result.insert(String(payload[payload.index(after: lParenIndex)..<rParenIndex]))
       }
-      _swiftKeywords!.resumeContinuations(with: .success(result))
-      _swiftKeywords = .cached(result)
-      return result
     }
   }
 }
