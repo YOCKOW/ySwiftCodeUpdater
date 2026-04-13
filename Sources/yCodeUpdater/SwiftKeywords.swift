@@ -20,7 +20,7 @@ private let _tokenKindsDefRemoteURL = URL(string: "https://raw.githubusercontent
 private actor _Cache {
   static let shared: _Cache = .init()
 
-  private let _swiftKeywords: CacheStore<Set<String>> = .init()
+  private let _swiftKeywords: Cached<Set<String>> = .init()
   var swiftKeywords: Set<String> {
     get async throws {
       try await _swiftKeywords.getValue { () async throws -> Set<String> in

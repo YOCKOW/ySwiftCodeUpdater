@@ -1,5 +1,5 @@
 /* *************************************************************************************************
- CacheManager.swift
+ Cached.swift
    © 2026 YOCKOW.
      Licensed under MIT License.
      See "LICENSE.txt" for more information.
@@ -31,62 +31,8 @@ private enum _Cache<Value> where Value: Sendable {
   }
 }
 
-/// Store cached values with associated keys.
-public actor KeyedCacheStore<Key, Value> where Key: Hashable, Key: Sendable, Value: Sendable {
-  private var _caches: [Key: _Cache<Value>]
-
-  public init() {
-    _caches = [:]
-  }
-
-  public var keys: some Collection<Key> & Sendable {
-    return _caches.keys
-  }
-
-  public func value(
-    for key: Key,
-    isCached: inout Bool,
-    ifAbsent initializer: @Sendable () async throws -> Value
-  ) async throws -> Value {
-    if let status = _caches[key] {
-      switch status {
-      case .cached(let value):
-        isCached = true
-        return value
-      case .processing:
-        let value = try await withCheckedThrowingContinuation {
-          _caches[key, default: .processing(continuations: [])].appendContinuation($0)
-        }
-        isCached = true
-        return value
-      }
-    }
-
-    isCached = false
-    _caches[key] = .processing(continuations: [])
-    var value: Value!
-    do {
-      value = try await initializer()
-    } catch {
-      _caches[key]!.resumuContinuations(with: .failure(error))
-      throw error
-    }
-    _caches[key]!.resumuContinuations(with: .success(value))
-    _caches[key] = .cached(value)
-    return value
-  }
-
-  public func value(
-    for key: Key,
-    ifAbsent initializer: @Sendable () async throws -> Value
-  ) async throws -> Value {
-    var isCached = false
-    return try await self.value(for: key, isCached: &isCached, ifAbsent: initializer)
-  }
-}
-
 /// Store a cached value.
-public actor CacheStore<Value> where Value: Sendable {
+public actor Cached<Value> where Value: Sendable {
   private var _cache: _Cache<Value>?
 
   public init() {
@@ -130,5 +76,40 @@ public actor CacheStore<Value> where Value: Sendable {
   ) async throws -> Value {
     var isCached = false
     return try await self.getValue(isCached: &isCached, ifAbsent: initializer)
+  }
+}
+
+/// Store cached values with associated keys.
+public actor KeyedCacheStore<Key, Value> where Key: Hashable, Key: Sendable, Value: Sendable {
+  private var _caches: [Key: Cached<Value>]
+
+  public init() {
+    _caches = [:]
+  }
+
+  public var keys: some Collection<Key> & Sendable {
+    return _caches.keys
+  }
+
+  public func value(
+    for key: Key,
+    isCached: inout Bool,
+    ifAbsent initializer: @Sendable () async throws -> Value
+  ) async throws -> Value {
+    if let store = _caches[key] {
+      return try await store.getValue(isCached: &isCached, ifAbsent: initializer)
+    }
+
+    let store = Cached<Value>()
+    _caches[key] = store
+    return try await store.getValue(isCached: &isCached, ifAbsent: initializer)
+  }
+
+  public func value(
+    for key: Key,
+    ifAbsent initializer: @Sendable () async throws -> Value
+  ) async throws -> Value {
+    var isCached = false
+    return try await self.value(for: key, isCached: &isCached, ifAbsent: initializer)
   }
 }

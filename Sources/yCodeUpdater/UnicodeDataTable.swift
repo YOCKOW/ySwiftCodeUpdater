@@ -21,7 +21,7 @@ private let _unicodeLicenseURL = URL(string: "https://www.unicode.org/license.tx
 private actor _UnicodeLicense {
   static let shared: _UnicodeLicense = .init()
 
-  private let _unicodeLicense: CacheStore<String> = .init()
+  private let _unicodeLicense: Cached<String> = .init()
   var unicodeLicense: String {
     get async throws {
       try await _unicodeLicense.getValue { () async throws -> String in
