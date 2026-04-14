@@ -177,7 +177,27 @@ public actor JobManager {
 
     /// View the given `message` to standard output.
     public func view(message: String) {
-      print("\(_messageIndent)ℹ️ \(_description): \(message)")
+      let prefix = "\(_messageIndent)ℹ️ \(_description): "
+
+      let splittedLines = message.split(omittingEmptySubsequences: false, whereSeparator: { $0.isNewline })
+      guard let lastIndex = splittedLines.lastIndex(where: {
+        $0.contains(where: { !$0.isWhitespace })
+      }) else {
+        print("\(prefix)<empty message>")
+        return
+      }
+
+      let significantLines = splittedLines[...lastIndex]
+      switch significantLines.count {
+      case 1:
+        print("\(prefix)\(significantLines.first!)")
+      default:
+        var output = "\(prefix)"
+        for line in significantLines {
+          output += "\n\(_messageIndent)  \(line)"
+        }
+        print(output)
+      }
     }
 
 
