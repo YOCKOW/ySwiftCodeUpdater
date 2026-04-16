@@ -152,7 +152,7 @@ public actor JobManager {
       }
       do {
         let result = try await closure(self)
-        if message != nil {
+        if !message.isNil {
           print("\(indent)✅ \(contextDescription): Succeeded.")
         }
         return result
