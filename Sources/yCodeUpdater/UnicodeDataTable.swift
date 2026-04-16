@@ -112,7 +112,7 @@ public struct UnicodeDataTable: Sendable {
         self.comment = comment.trimmingUnicodeScalars(where: { $0.latestProperties.isWhitespace || $0.latestProperties.isNewline })
       }
 
-      if self.payload == nil && self.comment == nil { return nil }
+      if self.payload.isNil && self.comment.isNil { return nil }
     }
   }
 

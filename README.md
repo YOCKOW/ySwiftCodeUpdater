@@ -19,14 +19,14 @@ title: ySwiftCodeUpdater Dependencies
 flowchart TD
   csv.swift(["CSV.swift<br>@2.5.2"])
   swiftbootstring(["Bootstring<br>@1.2.0"])
-  swiftnetworkgear(["NetworkGear<br>@0.20.0"])
-  swiftpublicsuffix(["PublicSuffix<br>@2.4.14"])
+  swiftnetworkgear(["NetworkGear<br>@0.20.1"])
+  swiftpublicsuffix(["PublicSuffix<br>@2.4.17"])
   swiftranges(["Ranges<br>@4.0.1"])
   swiftstringcomposition(["StringComposition<br>@3.0.0"])
   swifttemporaryfile(["TemporaryFile<br>@5.0.0"])
   swiftunicodesupplement(["UnicodeSupplement<br>@2.0.0"])
   yswiftcodeupdater["ySwiftCodeUpdater"]
-  yswiftextensions(["yExtensions<br>@2.0.0"])
+  yswiftextensions(["yExtensions<br>@2.1.0"])
 
   click csv.swift href "https://github.com/YOCKOW/CSV.swift.git"
   click swiftbootstring href "https://github.com/YOCKOW/SwiftBootstring.git"
